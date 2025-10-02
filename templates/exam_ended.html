@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Ended</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-glow: #ffc107; /* A warning yellow glow */
+            --background-color: #010409;
+            --card-bg: rgba(10, 25, 47, 0.7);
+            --border-color: rgba(255, 193, 7, 0.25);
+            --text-color: #e6edf3;
+            --secondary-text: rgba(230, 237, 243, 0.7);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        #hud-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.5;
+        }
+        
+        .message-card {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(255, 193, 7, 0.1);
+            padding: 40px 50px;
+            text-align: center;
+            animation: fadeInZoom 1s ease-out forwards;
+            opacity: 0;
+        }
+
+        .message-card h2 {
+            font-family: 'Orbitron', sans-serif;
+            margin: 0 0 15px 0;
+            font-size: 2.5rem;
+            color: var(--primary-glow);
+            text-shadow: 0 0 8px var(--primary-glow);
+        }
+
+        .message-card p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: var(--secondary-text);
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            background: transparent;
+            color: var(--primary-glow);
+            border: 1px solid var(--primary-glow);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        .btn:hover {
+            background: var(--primary-glow);
+            color: var(--background-color);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+        
+        @keyframes fadeInZoom { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body>
+    <canvas id="hud-canvas"></canvas>
+
+    <div class="message-card">
+        <h2>Access Denied</h2>
+        <p>You have already completed or been terminated from this exam. Each student is allowed only one attempt per subject.</p>
+        <a href="{{ url_for('dashboard') }}" class="btn">Return to Dashboard</a>
+    </div>
+
+    <script>
+        // Animated HUD Background
+        const hudCanvas = document.getElementById('hud-canvas');
+        const hudCtx = hudCanvas.getContext('2d');
+        hudCanvas.width = window.innerWidth;
+        hudCanvas.height = window.innerHeight;
+
+        function drawHud() {
+            hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
+            hudCtx.strokeStyle = 'rgba(255, 193, 7, 0.1)';
+            hudCtx.lineWidth = 1;
+            for (let i = 0; i < hudCanvas.width; i += 20) {
+                hudCtx.beginPath(); hudCtx.moveTo(i, 0); hudCtx.lineTo(i, hudCanvas.height); hudCtx.stroke();
+            }
+            for (let i = 0; i < hudCanvas.height; i += 20) {
+                hudCtx.beginPath(); hudCtx.moveTo(0, i); hudCtx.lineTo(hudCanvas.width, i); hudCtx.stroke();
+            }
+        }
+        
+        window.onload = drawHud;
+        window.onresize = () => {
+            hudCanvas.width = window.innerWidth;
+            hudCanvas.height = window.innerHeight;
+            drawHud();
+        };
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Terminated</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-glow: #ff4d4d; /* An alert red glow */
+            --background-color: #010409;
+            --card-bg: rgba(10, 25, 47, 0.7);
+            --border-color: rgba(255, 77, 77, 0.25);
+            --text-color: #e6edf3;
+            --secondary-text: rgba(230, 237, 243, 0.7);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+        }
+        
+        .message-card {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            box-shadow: 0 0 40px rgba(255, 77, 77, 0.15);
+            padding: 50px;
+            text-align: center;
+            animation: fadeInZoom 1.5s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+            opacity: 0;
+        }
+
+        #alert-icon {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            animation: icon-pop-in 1s 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            transform: scale(0);
+        }
+
+        .message-card h2 {
+            font-family: 'Orbitron', sans-serif;
+            margin: 0 0 15px 0;
+            font-size: 2.5rem;
+            color: var(--primary-glow);
+            text-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .message-card p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: var(--secondary-text);
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            background: transparent;
+            color: var(--primary-glow);
+            border: 1px solid var(--primary-glow);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        .btn:hover {
+            background: var(--primary-glow);
+            color: var(--background-color);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+        
+        @keyframes fadeInZoom { 
+            to { opacity: 1; transform: scale(1); } 
+        }
+        @keyframes icon-pop-in {
+            to { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrix-canvas"></canvas>
+
+    <div class="message-card">
+        <svg id="alert-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+             <defs>
+                <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:var(--primary-glow);stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#fff;stop-opacity:1" />
+                </linearGradient>
+            </defs>
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="url(#grad)"/>
+        </svg>
+        <h2>Security Protocol Alert</h2>
+        <p>Your exam session has been terminated due to a security violation. Your current progress has been submitted and recorded.</p>
+        <a href="{{ url_for('dashboard') }}" class="btn">Return to Dashboard</a>
+    </div>
+
+    <script>
+        // Matrix Rain Effect Script
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const alphabet = '01';
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        const rainDrops = Array.from({ length: columns }).fill(1);
+
+        const draw = () => {
+            ctx.fillStyle = 'rgba(1, 4, 9, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(255, 77, 77, 0.7)';
+            ctx.font = fontSize + 'px monospace';
+            for (let i = 0; i < rainDrops.length; i++) {
+                const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                ctx.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+                if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    rainDrops[i] = 0;
+                }
+                rainDrops[i]++;
+            }
+        };
+        setInterval(draw, 33);
+    </script>
+</body>
+</html>

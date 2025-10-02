@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin | Live Proctoring Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-glow: #ff4d4d; /* Alert Red */
+            --background-color: #010409;
+            --card-bg: rgba(10, 25, 47, 0.7);
+            --border-color: rgba(255, 77, 77, 0.2);
+            --text-color: #e6edf3;
+            --secondary-text: rgba(230, 237, 243, 0.7);
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            overflow-y: auto;
+        }
+        #matrix-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.3;
+        }
+        .container {
+            max-width: 1600px;
+            margin: auto;
+            padding: 30px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-family: 'Orbitron', sans-serif; font-size: 3rem; margin: 0;
+            color: var(--primary-glow); text-shadow: 0 0 15px var(--primary-glow);
+        }
+        .back-btn {
+            color: var(--primary-glow); text-decoration: none; font-weight: 600;
+            border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .back-btn:hover { background-color: rgba(255, 77, 77, 0.1); box-shadow: 0 0 15px var(--primary-glow); }
+
+        .proctoring-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .student-card {
+            background: var(--card-bg); backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color); border-radius: 12px;
+            padding: 20px;
+            animation: fadeIn 1s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .student-icon {
+            width: 60px;
+            height: 60px;
+            flex-shrink: 0;
+            color: var(--primary-glow);
+        }
+        .student-info h3 {
+            margin: 0 0 5px 0;
+            font-family: 'Orbitron', sans-serif;
+        }
+        .student-info p {
+            margin: 0;
+            color: var(--secondary-text);
+            font-size: 0.9rem;
+        }
+        .no-students-message {
+            grid-column: 1 / -1; /* Span full width */
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--secondary-text);
+            padding: 50px;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <canvas id="matrix-canvas"></canvas>
+    <div class="container">
+        <div class="header">
+            <h1>Live Student Roster</h1>
+            <a href="{{ url_for('admin_dashboard') }}" class="back-btn">Return to Dashboard</a>
+        </div>
+        <div id="proctoring-grid" class="proctoring-grid">
+            {% if active_students %}
+                {% for roll_no, student in active_students.items() %}
+                    <div class="student-card">
+                        <div class="student-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                            </svg>
+                        </div>
+                        <div class="student-info">
+                            <h3>{{ student.name }}</h3>
+                            <p>Roll No: {{ roll_no }} | Subject: {{ student.subject.upper() }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="no-students-message">There are currently no students taking an exam.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Matrix Rain Effect Script
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const alphabet = '01';
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        const rainDrops = Array.from({ length: columns }).fill(1);
+        const draw = () => {
+            ctx.fillStyle = 'rgba(1, 4, 9, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(255, 77, 77, 0.7)';
+            ctx.font = fontSize + 'px monospace';
+            for (let i = 0; i < rainDrops.length; i++) {
+                const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                ctx.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+                if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) { rainDrops[i] = 0; }
+                rainDrops[i]++;
+            }
+        };
+        setInterval(draw, 33);
+
+        // ** Auto-refresh the page every 10 seconds to get live data **
+        setTimeout(() => {
+            window.location.reload();
+        }, 10000); 
+
+    </script>
+</body>
+</html>
+
+

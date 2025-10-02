@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-glow: #00f6ff;
+            --secondary-glow: #ff00c1;
+            --background-color: #010409;
+            --card-bg: rgba(10, 25, 47, 0.7);
+            --border-color: rgba(0, 246, 255, 0.2);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: #e6edf3;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #nebula-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .dashboard-container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 50px;
+            animation: fadeInDown 1s ease-out;
+            position: relative;
+        }
+
+        .header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            margin: 0 0 10px 0;
+        }
+
+        .header h1 span {
+            color: var(--primary-glow);
+            text-shadow: 0 0 10px var(--primary-glow);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            color: rgba(230, 237, 243, 0.7);
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            color: var(--primary-glow);
+            text-decoration: none;
+            font-weight: 600;
+            border: 1px solid var(--border-color);
+            padding: 8px 15px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .logout-btn:hover {
+            background-color: rgba(0, 246, 255, 0.1);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .subjects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            perspective: 2000px;
+        }
+
+        .subject-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-decoration: none;
+            color: #e6edf3;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+            position: relative;
+            overflow: hidden;
+            transform-style: preserve-3d;
+        }
+
+        .subject-card:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(0, 246, 255, 0.25), transparent 40%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        
+        .subject-card:hover:before {
+            opacity: 1;
+        }
+
+        .subject-card:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 20px 40px rgba(0, 246, 255, 0.15);
+        }
+
+        .card-icon {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 20px auto;
+            color: var(--primary-glow);
+            transition: transform 0.4s ease;
+        }
+
+        .subject-card:hover .card-icon {
+            transform: scale(1.1);
+        }
+        
+        .subject-card h3 {
+            font-family: 'Orbitron', sans-serif;
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="nebula-canvas"></canvas>
+    
+    <div class="dashboard-container">
+        <div class="header">
+            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+            <h1>Welcome, <span>{{ student_name }}</span></h1>
+            <p>Select a subject to begin your examination.</p>
+        </div>
+
+        <div class="subjects-grid">
+            <a href="{{ url_for('exam_notice', subject='tcs') }}" class="subject-card" style="animation-delay: 0.1s;">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" /></svg>
+                </div>
+                <h3>Theoretical Computer Science</h3>
+            </a>
+            <a href="{{ url_for('exam_notice', subject='ip') }}" class="subject-card" style="animation-delay: 0.2s;">
+                 <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A11.953 11.953 0 0112 16.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0-3.866-2.134-7.16-5.157-8.843" /></svg>
+                </div>
+                <h3>Internet Programming</h3>
+            </a>
+            <a href="{{ url_for('exam_notice', subject='dwm') }}" class="subject-card" style="animation-delay: 0.3s;">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>
+                </div>
+                <h3>Data Warehouse & Mining</h3>
+            </a>
+            <a href="{{ url_for('exam_notice', subject='cn') }}" class="subject-card" style="animation-delay: 0.4s;">
+                <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.043A5.25 5.25 0 017.5 15h9a5.25 5.25 0 01-.788.043m-8.424 0a5.25 5.25 0 00-1.06 4.135m10.544 0a5.25 5.25 0 01-1.06-4.135m0 0c0-2.896 2.354-5.25 5.25-5.25s5.25 2.354 5.25 5.25m0 0c0 2.896-2.354 5.25-5.25 5.25m0 0c-2.896 0-5.25-2.354-5.25-5.25m-10.5 0c0 2.896 2.354 5.25 5.25 5.25s5.25-2.354 5.25-5.25m0 0c0-2.896-2.354-5.25-5.25-5.25S2.25 12.104 2.25 15" /></svg>
+                </div>
+                <h3>Computer Networks</h3>
+            </a>
+            <a href="{{ url_for('exam_notice', subject='se') }}" class="subject-card" style="animation-delay: 0.5s;">
+                 <div class="card-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
+                </div>
+                <h3>Software Engineering</h3>
+            </a>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // JavaScript for animations...
+    </script>
+</body>
+</html>
+

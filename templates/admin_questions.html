@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Console | {{ subject_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-glow: #00f6ff;
+            --background-color: #010409;
+            --card-bg: rgba(10, 25, 47, 0.7);
+            --border-color: rgba(0, 246, 255, 0.2);
+            --text-color: #e6edf3;
+            --secondary-text: rgba(230, 237, 243, 0.7);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+        }
+
+        .sidebar {
+            width: 300px;
+            flex-shrink: 0;
+            background: rgba(5, 15, 30, 0.6);
+            backdrop-filter: blur(15px);
+            border-right: 1px solid var(--border-color);
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            z-index: 2;
+            animation: slideInLeft 1s ease-out;
+        }
+
+        .sidebar-header { text-align: center; margin-bottom: 50px; }
+        .sidebar-header h2 { font-family: 'Orbitron', sans-serif; margin: 0; font-size: 1.8rem; color: var(--primary-glow); letter-spacing: 1px; text-shadow: 0 0 10px var(--primary-glow); }
+        
+        .nav-menu a { display: flex; align-items: center; padding: 15px; color: var(--secondary-text); text-decoration: none; border-radius: 8px; margin-bottom: 10px; transition: all 0.3s ease; border: 1px solid transparent; }
+        .nav-menu a.active, .nav-menu a:hover { background-color: rgba(0, 246, 255, 0.1); color: #fff; border-color: var(--border-color); }
+        .nav-menu a svg { margin-right: 15px; }
+
+        .info-panel { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border-color); }
+        .info-panel h3 { font-family: 'Orbitron', sans-serif; font-size: 1rem; color: var(--secondary-text); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
+        .info-item { display: flex; align-items: center; margin-bottom: 10px; font-size: 0.9rem; }
+        .info-indicator { width: 8px; height: 8px; border-radius: 50%; background-color: #28a745; margin-right: 10px; box-shadow: 0 0 8px #28a745; }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 40px 50px;
+            overflow-y: auto;
+            animation: fadeIn 1.5s ease-out;
+        }
+        .main-content::-webkit-scrollbar { width: 6px; }
+        .main-content::-webkit-scrollbar-thumb { background-color: var(--primary-glow); border-radius: 3px; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        .header h1 { font-family: 'Orbitron', sans-serif; margin: 0; font-size: 2.8rem; color: #fff; }
+        .header a.logout-btn { color: var(--primary-glow); text-decoration: none; font-weight: 600; border: 1px solid var(--border-color); padding: 8px 15px; border-radius: 8px; transition: all 0.3s ease; }
+        .header a.logout-btn:hover { background-color: rgba(0, 246, 255, 0.1); box-shadow: 0 0 15px var(--primary-glow); }
+        
+        .content-card { background: var(--card-bg); backdrop-filter: blur(10px); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 30px; }
+        .content-card h2 { font-family: 'Orbitron', sans-serif; font-weight: 500; color: var(--primary-glow); border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 25px; }
+        
+        .form-group { margin-bottom: 25px; position: relative; }
+        .form-group input { width: 100%; padding: 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; font-size: 1rem; color: var(--text-color); transition: all 0.2s ease; }
+        .form-group input:focus { border-color: var(--primary-glow); box-shadow: 0 0 0 2px rgba(0, 246, 255, 0.3), inset 0 0 10px rgba(0, 246, 255, 0.1); outline: none; }
+        
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        
+        .btn { padding: 14px 35px; background: transparent; color: var(--primary-glow); border: 1px solid var(--primary-glow); border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all 0.3s ease; position: relative; overflow: hidden; }
+        .btn:hover { background: var(--primary-glow); color: var(--background-color); box-shadow: 0 0 25px var(--primary-glow); }
+
+        .question-accordion details { background: transparent; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 15px; transition: all 0.3s ease; }
+        .question-accordion details:hover { border-color: var(--primary-glow); box-shadow: 0 0 15px rgba(0, 246, 255, 0.2); }
+        .question-accordion summary { padding: 20px; cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+        .question-accordion summary::-webkit-details-marker { display: none; }
+        .question-accordion summary::after { content: '+'; font-size: 1.5rem; transition: transform 0.3s ease; }
+        .question-accordion details[open] summary::after { transform: rotate(45deg); }
+        .question-accordion .question-body { padding: 0 20px 20px 20px; }
+        .question-accordion ol { margin: 0; padding-left: 20px; color: var(--secondary-text); }
+        .question-accordion small { display: block; margin-top: 10px; color: var(--primary-glow); font-weight: 600; }
+        
+        @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    </style>
+</head>
+<body>
+    <canvas id="matrix-canvas"></canvas>
+    
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>Admin Console</h2>
+        </div>
+        <nav class="nav-menu">
+            <a href="{{ url_for('admin_dashboard') }}">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                <span>Manage Questions</span>
+            </a>
+        </nav>
+        <div class="info-panel">
+            <h3>System Status</h3>
+            <div class="info-item"><div class="info-indicator"></div>Online</div>
+            <div class="info-item"><div class="info-indicator"></div>Exams Active</div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="header">
+            <h1>Subject: {{ subject_name }}</h1>
+            <a href="{{ url_for('admin_logout') }}" class="logout-btn">Logout</a>
+        </div>
+
+        <div class="content-card">
+            <h2>Add New Question</h2>
+            <form action="{{ url_for('add_question', subject=subject_code) }}" method="POST">
+                <div class="form-group"><input type="text" name="question_text" required placeholder="Question Text"></div>
+                <div class="options-grid">
+                    <div class="form-group"><input type="text" name="option1" required placeholder="Option A"></div>
+                    <div class="form-group"><input type="text" name="option2" required placeholder="Option B"></div>
+                    <div class="form-group"><input type="text" name="option3" required placeholder="Option C"></div>
+                    <div class="form-group"><input type="text" name="option4" required placeholder="Option D"></div>
+                </div>
+                <div class="form-group"><input type="text" name="correct_answer" required placeholder="Correct Answer (exact text)"></div>
+                <button type="submit" class="btn">Add to Question Bank</button>
+            </form>
+        </div>
+
+        <div class="content-card">
+            <h2>Current Question Bank</h2>
+            <div class="question-accordion">
+                {% if questions %}
+                    {% for q in questions %}
+                    <details>
+                        <summary><strong>Q{{ q.id }}: {{ q.text }}</strong></summary>
+                        <div class="question-body">
+                            <ol type="A">{% for option in q.options %}<li>{{ option }}</li>{% endfor %}</ol>
+                            <small>Answer: {{ q.answer }}</small>
+                        </div>
+                    </details>
+                    {% endfor %}
+                {% else %}
+                    <p>No questions found. Use the form above to build the question bank.</p>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Matrix Rain Effect Script
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const alphabet = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッンABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        const rainDrops = Array.from({ length: columns }).fill(1);
+
+        const draw = () => {
+            ctx.fillStyle = 'rgba(1, 4, 9, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(0, 246, 255, 0.7)';
+            ctx.font = fontSize + 'px monospace';
+            for (let i = 0; i < rainDrops.length; i++) {
+                const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                ctx.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+                if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    rainDrops[i] = 0;
+                }
+                rainDrops[i]++;
+            }
+        };
+        setInterval(draw, 33);// Add this to your student's exam.html script
+
+socket.on('exam_terminated', (data) => {
+    // This calls the function you already have for submitting the exam
+    submitExam(data.reason);
+});
+    </script>
+</body>
+</html>
+

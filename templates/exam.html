@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Console | {{ subject_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        :root {
+            --primary-glow: #00f6ff;
+            --secondary-glow: #ff00c1;
+            --background-color: #010409;
+            --card-bg: rgba(10, 25, 47, 0.6);
+            --border-color: rgba(0, 246, 255, 0.25);
+            --text-color: #e6edf3;
+            --secondary-text: rgba(230, 237, 243, 0.7);
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        #hud-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.5;
+        }
+        #exam-container {
+            width: 90vw; max-width: 1200px; height: 90vh; background: var(--card-bg);
+            backdrop-filter: blur(15px); border: 1px solid var(--border-color);
+            border-radius: 15px; box-shadow: 0 0 30px rgba(0, 246, 255, 0.1);
+            display: flex; flex-direction: column; animation: fadeInZoom 1s ease-out forwards; opacity: 0;
+        }
+        .exam-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 30px; border-bottom: 1px solid var(--border-color); flex-shrink: 0;
+        }
+        .exam-header h2 {
+            font-family: 'Orbitron', sans-serif; margin: 0; font-size: 1.8rem;
+            color: var(--primary-glow); text-shadow: 0 0 8px var(--primary-glow);
+        }
+        #timer-container {
+            width: 300px; height: 10px; background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color); border-radius: 5px; position: relative;
+        }
+        #timer-progress {
+            width: 100%; height: 100%; background: linear-gradient(90deg, var(--secondary-glow), var(--primary-glow));
+            border-radius: 5px; transition: width 1s linear;
+        }
+        #timer-text {
+            position: absolute; right: -60px; top: 50%; transform: translateY(-50%);
+            font-family: 'Orbitron', sans-serif; font-size: 1.2rem;
+        }
+        .exam-body {
+            display: flex; flex-grow: 1; padding: 30px; gap: 30px; overflow: hidden; position: relative;
+        }
+        #calibration-overlay {
+            position: absolute; top: 0; left: 0; right: 280px; bottom: 0;
+            background: rgba(1, 4, 9, 0.9); z-index: 10; display: flex;
+            justify-content: center; align-items: center; flex-direction: column;
+            transition: opacity 0.5s ease-out;
+        }
+        #calibration-overlay h3 { font-family: 'Orbitron', sans-serif; font-size: 1.5rem; color: var(--primary-glow); margin-bottom: 10px; }
+        #calibration-overlay p { color: var(--secondary-text); }
+        .main-panel { flex-grow: 1; display: flex; flex-direction: column; }
+        #question-area { flex-grow: 1; }
+        .navigation-buttons { margin-top: auto; align-self: flex-end; }
+        .btn { padding: 12px 30px; background: transparent; color: var(--primary-glow); border: 1px solid var(--primary-glow); border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all 0.3s ease; }
+        .btn:hover { background: var(--primary-glow); color: var(--background-color); box-shadow: 0 0 20px var(--primary-glow); }
+        .btn:disabled { cursor: not-allowed; opacity: 0.5; }
+        .sidebar-panel { width: 250px; flex-shrink: 0; display: flex; flex-direction: column; gap: 20px; }
+        .proctoring-panel { border: 1px solid var(--border-color); border-radius: 10px; padding: 15px; text-align: center; }
+        .proctoring-panel h3 { font-family: 'Orbitron', sans-serif; margin: 0 0 15px 0; font-size: 1rem; color: var(--secondary-text); }
+        #webcam-container { position: relative; width: 220px; height: 165px; margin: auto; overflow: hidden; border-radius: 8px; background-color: #000; }
+        #webcam { width: 100%; height: 100%; object-fit: cover; }
+        #proctor-message { font-weight: 600; margin-top: 15px; color: #28a745; }
+        @keyframes fadeInZoom { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body>
+    <canvas id="hud-canvas"></canvas>
+    <div id="exam-container">
+       <div id="warning-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 1000; color: white; justify-content: center; align-items: center; text-align: center; font-size: 1.5rem; backdrop-filter: blur(5px);">
+    <p id="warning-message"></p>
+</div>
+        <div class="exam-header">
+            <h2>{{ subject_name }}</h2>
+            <div id="timer-container">
+                <div id="timer-progress"></div>
+                <span id="timer-text">30:00</span>
+            </div>
+        </div>
+        <div class="exam-body">
+             <div id="calibration-overlay">
+                <h3 id="calibration-title">Initializing Exam...</h3>
+                <p id="calibration-status">Please wait.</p>
+            </div>
+            <div class="main-panel">
+                <div id="question-area"></div>
+                <div class="navigation-buttons">
+                    <button id="next-btn" class="btn">Next Question</button>
+                </div>
+            </div>
+            <aside class="sidebar-panel">
+                <div class="proctoring-panel">
+                    <h3>BIOMETRIC SCAN</h3>
+                    <div id="webcam-container">
+                        <video id="webcam" autoplay muted playsinline></video>
+                    </div>
+                </div>
+                <div class="proctoring-panel">
+                    <h3>SYSTEM STATUS</h3>
+                    <p id="proctor-message" class="ok">PROCTORING ACTIVE</p>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+    // --- CONFIG & STATE ---
+    const EXAM_DURATION = 30 * 60; // 30 minutes in seconds
+    const SUBJECT = "{{ subject }}";
+    const STUDENT_ROLL_NO = "{{ roll_no }}";
+    let questions = [], currentQuestionIndex = 0, userAnswers = {}, examTimer;
+    let examTerminated = false;
+
+    // --- DOM ELEMENTS ---
+    const videoEl = document.getElementById('webcam');
+    const nextBtn = document.getElementById('next-btn');
+    const calibrationOverlay = document.getElementById('calibration-overlay');
+    const calibrationTitle = document.getElementById('calibration-title');
+    const calibrationStatus = document.getElementById('calibration-status');
+
+    const socket = io();
+
+    // --- SOCKET.IO CONNECTION ---
+    socket.on('connect', () => {
+        console.log("Socket connected. Joining student room...");
+        // Announce that this student has started an exam
+        socket.emit('student_join', { 
+            roll_no: STUDENT_ROLL_NO,
+            // Include other info if your server needs it, like name or subject
+        });
+    });
+
+    // --- CORE EXAM LOGIC ---
+    async function startExam() {
+        try {
+            const response = await fetch(`/api/questions/${SUBJECT}`);
+            if (!response.ok) throw new Error('Could not fetch questions.');
+            questions = await response.json();
+            
+            await startWebcamAndCalibrate();
+            
+            startTimer(EXAM_DURATION);
+            listenForSecurityEvents();
+            displayQuestion();
+
+        } catch (error) {
+            calibrationTitle.textContent = "Exam Start Failed";
+            calibrationStatus.innerHTML = `${error.message}<br/><br/><a href="/dashboard" class="btn">Return to Dashboard</a>`;
+        }
+    }
+
+    // In exam.html
+
+function displayQuestion() {
+    if (currentQuestionIndex >= questions.length) return;
+    
+    const q = questions[currentQuestionIndex];
+    const questionArea = document.getElementById('question-area');
+    
+    // This creates the radio buttons for the options
+    let optionsHtml = q.options.map((opt, index) => `
+        <div style="margin: 10px 0; font-size: 1.1rem;">
+            <input type="radio" name="option" value="${opt}" id="opt${index}" style="margin-right: 10px;">
+            <label for="opt${index}">${opt}</label>
+        </div>
+    `).join('');
+
+    // This correctly displays the question text
+    questionArea.innerHTML = `
+        <h3 style="font-size: 1.4rem;">Q${currentQuestionIndex + 1}: ${q.question}</h3>
+        <form>${optionsHtml}</form>
+    `;
+
+    if (currentQuestionIndex === questions.length - 1) {
+        nextBtn.textContent = 'Submit Exam';
+    }
+}
+
+    function saveAnswer() {
+        const selectedOption = document.querySelector('input[name="option"]:checked');
+        if (selectedOption) {
+            userAnswers[questions[currentQuestionIndex].id] = selectedOption.value;
+        }
+    }
+
+    nextBtn.addEventListener('click', () => {
+        saveAnswer();
+        if (nextBtn.textContent === 'Submit Exam') {
+            submitExam("You have completed the exam.");
+        } else {
+            currentQuestionIndex++;
+            displayQuestion();
+        }
+    });
+    
+    async function submitExam(reason) {
+        if (examTerminated) return;
+        examTerminated = true;
+        
+        clearInterval(examTimer);
+        if (videoEl.srcObject) {
+            videoEl.srcObject.getTracks().forEach(track => track.stop());
+        }
+        
+        // Stop listening for cheating attempts
+        window.removeEventListener("blur", handleBlur);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        document.removeEventListener('keyup', handleKeyUp);
+        
+        socket.emit('student_leave', { roll_no: STUDENT_ROLL_NO });
+        nextBtn.textContent = 'Submitting...';
+        nextBtn.disabled = true;
+
+        try {
+            const response = await fetch('/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subject: SUBJECT, answers: userAnswers, reason: reason })
+            });
+            const data = await response.json();
+            if (data.redirect_url) {
+                window.location.href = data.redirect_url;
+            }
+        } catch (error) {
+            console.error("Submission failed:", error);
+            alert("Could not submit exam. Please check your connection.");
+        }
+    }
+
+    function startTimer(duration) {
+        let timeLeft = duration;
+        const timerProgress = document.getElementById('timer-progress');
+        const timerText = document.getElementById('timer-text');
+
+        examTimer = setInterval(() => {
+            timeLeft--;
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerText.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            timerProgress.style.width = `${(timeLeft / duration) * 100}%`;
+
+            if (timeLeft <= 0) {
+                clearInterval(examTimer);
+                submitExam("Time ran out.");
+            }
+        }, 1000);
+    }
+    
+    // --- SECURITY & PROCTORING ---
+    const handleVisibilityChange = () => { if (document.hidden) submitExam("Changed tabs"); };
+    const handleBlur = () => { submitExam("Window lost focus"); };
+    const handleKeyUp = (e) => { if (e.key === 'PrintScreen') submitExam("Screenshot attempt"); };
+
+    function listenForSecurityEvents() {
+        window.addEventListener('blur', handleBlur);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        document.addEventListener('keyup', handleKeyUp);
+    }
+
+    async function startWebcamAndCalibrate() {
+        try {
+            calibrationTitle.textContent = 'Requesting Camera Access...';
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            videoEl.srcObject = stream;
+            
+            calibrationTitle.textContent = 'Initializing Proctor Stream...';
+            
+            // This now starts the Base64 frame emitter instead of WebRTC
+            startFrameEmitter(videoEl, stream);
+            
+            calibrationOverlay.style.opacity = '0';
+            setTimeout(() => calibrationOverlay.style.display = 'none', 500);
+
+        } catch (err) {
+            console.error("Camera Error:", err);
+            throw new Error("Webcam access is required for this exam and was denied.");
+        }
+    }
+
+    // --- ** NEW: Live Streaming Logic (Base64 Frames) ** ---
+    function startFrameEmitter(videoElement, stream) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const FPS = 2; // Stream at 2 frames per second. Increase for smoother video.
+
+        videoElement.addEventListener('loadedmetadata', () => {
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+        });
+
+        const frameEmitterInterval = setInterval(() => {
+            if (examTerminated) {
+                clearInterval(frameEmitterInterval);
+                return;
+            }
+            
+            if (videoElement.readyState >= 2) {
+                ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                // Use JPEG with quality 0.5 for smaller data size
+                const frameData = canvas.toDataURL('image/jpeg', 0.5);
+                
+                // Use the correct event name your server is listening for
+                socket.emit('video_frame_from_student', {
+                    roll_no: STUDENT_ROLL_NO,
+                    frame: frameData
+                });
+            }
+        }, 1000 / FPS);
+    }// In exam.html, inside the <script> tag
+
+// ADD THIS LISTENER for warnings
+socket.on('receive_warning', (data) => {
+    const overlay = document.getElementById('warning-overlay');
+    const messageEl = document.getElementById('warning-message');
+    
+    messageEl.textContent = data.message;
+    overlay.style.display = 'flex';
+    
+    // Hide the warning after 5 seconds
+    setTimeout(() => {
+        overlay.style.display = 'none';
+    }, 5000);
+});
+
+// ADD THIS LISTENER for termination
+socket.on('exam_terminated', (data) => {
+    // This calls the submitExam function you already have
+    submitExam(data.reason);
+});
+    
+    window.onload = startExam;
+</script>
+
+</body>
+</html>
+

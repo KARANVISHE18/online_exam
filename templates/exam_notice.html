@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Briefing | {{ subject_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-glow: #ffc107; /* Warning yellow */
+            --background-color: #010409;
+            --card-bg: rgba(10, 25, 47, 0.7);
+            --border-color: rgba(255, 193, 7, 0.25);
+            --text-color: #e6edf3;
+            --secondary-text: rgba(230, 237, 243, 0.7);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+        }
+        
+        .briefing-card {
+            width: 100%;
+            max-width: 800px;
+            background: var(--card-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            box-shadow: 0 0 40px rgba(255, 193, 7, 0.15);
+            padding: 40px 50px;
+            text-align: center;
+            animation: fadeInZoom 1.5s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+            opacity: 0;
+        }
+
+        .briefing-card h2 {
+            font-family: 'Orbitron', sans-serif;
+            margin: 0 0 20px 0;
+            font-size: 2.5rem;
+            color: var(--primary-glow);
+            text-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .rules-list {
+            text-align: left;
+            margin: 30px auto;
+            max-width: 600px;
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .rules-list li {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        .rules-list .icon {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            margin-right: 15px;
+            margin-top: 3px;
+        }
+
+        .rules-list .icon.do { color: #28a745; }
+        .rules-list .icon.dont { color: #dc3545; }
+
+        .btn {
+            padding: 14px 35px;
+            background: transparent;
+            color: var(--primary-glow);
+            border: 1px solid var(--primary-glow);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        .btn:hover {
+            background: var(--primary-glow);
+            color: var(--background-color);
+            box-shadow: 0 0 25px var(--primary-glow);
+        }
+        
+        @keyframes fadeInZoom { 
+            to { opacity: 1; transform: scale(1); } 
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrix-canvas"></canvas>
+
+    <div class="briefing-card">
+        <h2>Security Protocol Briefing</h2>
+        <p>You are about to begin the exam for <strong>{{ subject_name }}</strong>. Please read and acknowledge the following rules.</p>
+        
+        <ul class="rules-list">
+            <li>
+                <svg class="icon do" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <div><strong>DO</strong> ensure your webcam is uncovered and that you are clearly visible at all times.</div>
+            </li>
+             <li>
+                <svg class="icon do" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <div><strong>DO</strong> use a desktop or laptop computer with a stable internet connection.</div>
+            </li>
+            <li>
+                <svg class="icon dont" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <div><strong>DO NOT</strong> switch tabs or minimize the browser. The exam will terminate immediately.</div>
+            </li>
+            <li>
+                <svg class="icon dont" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <div><strong>DO NOT</strong> attempt to take a screenshot. The exam will terminate immediately.</div>
+            </li>
+            <li>
+                <svg class="icon dont" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <div><strong>DO NOT</strong> allow any other person to enter the camera's view. You will receive a warning.</div>
+            </li>
+        </ul>
+
+        <a href="{{ url_for('exam_page', subject=subject_code) }}" class="btn">Acknowledge & Proceed</a>
+    </div>
+
+    <script>
+        // Matrix Rain Effect Script
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const alphabet = '01';
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        const rainDrops = Array.from({ length: columns }).fill(1);
+
+        const draw = () => {
+            ctx.fillStyle = 'rgba(1, 4, 9, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(255, 193, 7, 0.7)';
+            ctx.font = fontSize + 'px monospace';
+            for (let i = 0; i < rainDrops.length; i++) {
+                const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                ctx.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+                if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    rainDrops[i] = 0;
+                }
+                rainDrops[i]++;
+            }
+        };
+        setInterval(draw, 33);
+    </script>
+</body>
+</html>
+
