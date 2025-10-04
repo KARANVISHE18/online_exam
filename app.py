@@ -1,13 +1,31 @@
 import eventlet
 eventlet.monkey_patch()
-
+import sqlite3
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import json
 import pandas as pd
 from io import BytesIO
 import os
-import random
+import random 
+# In app.py, add these imports
+import cv2
+import numpy as np
+import base64
+
+# --- AI Model Setup (YOLO) ---
+# Load the model configuration and weights
+yolo_path = "yolo_model" 
+net = cv2.dnn.readNet(os.path.join(yolo_path, "yolov3-tiny.weights"), os.path.join(yolo_path, "yolov3-tiny.cfg"))
+layer_names = net.getLayerNames()
+output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
+
+# Load the object names
+with open(os.path.join(yolo_path, "coco.names"), "r") as f:
+    classes = [line.strip() for line in f.readlines()]
+
+print("AI Model loaded successfully.")
+# --- End of AI Model Setup ---
 
 app = Flask(__name__)
 # IMPORTANT: For production, load this from an environment variable, not hardcoded.
@@ -331,49 +349,49 @@ def exam_page(subject):
     full_subject_name = SUBJECT_MAP.get(subject, "Unknown Subject")
     return render_template('exam.html', subject=subject, subject_name=full_subject_name, roll_no=student_roll_no)
 
+# In app.py
+
+# ... (your imports and other code) ...
+
 @app.route('/submit', methods=['POST'])
 def submit_exam():
-    if 'email' not in session:
+    if 'roll_no' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
 
     data = request.json
     subject = data.get('subject')
     answers = data.get('answers', {})
     reason = data.get('reason', 'Completed normally')
-    student_roll_no = session['roll_no']
+    student_roll_no = str(session['roll_no'])
     student_name = session['student_name']
 
-    # Score calculation
+    # --- DATABASE LOGIC (replaces JSON logic) ---
     score = 0
-    total_questions = len(QUESTIONS.get(subject, []))
-    for question in QUESTIONS.get(subject, []):
-        qid = str(question['id'])
-        if qid in answers and answers[qid] == question['answer']:
+    question_bank = QUESTIONS.get(subject, [])
+    correct_answers = {str(q['id']): q['answer'] for q in question_bank}
+    for q_id, user_answer in answers.items():
+        if correct_answers.get(q_id) == user_answer:
             score += 1
-
+            
     status = "Completed" if "completed" in reason.lower() else "Terminated"
 
-    if str(student_roll_no) not in RESULTS:
-        RESULTS[str(student_roll_no)] = {}
+    # Connect to the database and insert the result
+    conn = sqlite3.connect('exam_database.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO results (student_roll_no, subject_code, score, total, status) VALUES (?, ?, ?, ?, ?)",
+        (student_roll_no, subject, score, len(question_bank), status)
+    )
+    conn.commit()
+    conn.close()
+    # --- END OF DATABASE LOGIC ---
 
-    RESULTS[str(student_roll_no)][subject] = {
-        'name': student_name,
-        'score': score,
-        'total': total_questions,
-        'status': status
-    }
-
-    with open(RESULTS_FILE, 'w') as f:
-        json.dump(RESULTS, f, indent=4)
-
-    # Clean up from active exams
-    if str(student_roll_no) in ACTIVE_EXAMS:
-        del ACTIVE_EXAMS[str(student_roll_no)]
+    if student_roll_no in ACTIVE_EXAMS:
+        del ACTIVE_EXAMS[student_roll_no]
         with open(ACTIVE_EXAMS_FILE, 'w') as f:
             json.dump(ACTIVE_EXAMS, f, indent=4)
-
-    redirect_url = url_for('submission_success') if status == "Completed" else url_for('exam_terminated')
-    return jsonify({'status': 'success', 'redirect_url': redirect_url})
+            
+    return jsonify({'status': 'success', 'redirect_url': url_for('dashboard')})
 
 @app.route('/submission_success')
 def submission_success():
@@ -534,6 +552,37 @@ def admin_logout():
     return redirect(url_for('admin_login_page'))
 
 # --- SocketIO Events ---
+# In your app.py file
+
+@app.route('/admin/review/<student_roll_no>')
+def review_session(student_roll_no):
+    if not session.get('admin'):
+        return redirect(url_for('admin_login_page'))
+
+    # Fetch logs for the specific student from the database
+    conn = sqlite3.connect('exam_database.db')
+    conn.row_factory = sqlite3.Row # This allows accessing columns by name
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT timestamp, event_type, message FROM proctoring_logs WHERE student_roll_no = ? ORDER BY timestamp DESC",
+        (student_roll_no,)
+    )
+    logs = cursor.fetchall()
+    conn.close()
+
+    # Get student name for display
+    student_name = ""
+    for student_data in STUDENTS.values():
+        if str(student_data['roll_no']) == str(student_roll_no):
+            student_name = student_data['name']
+            break
+
+    return render_template(
+        'admin_review.html', 
+        logs=logs, 
+        student_roll_no=student_roll_no,
+        student_name=student_name
+    )
 @socketio.on('connect')
 def handle_connect():
     print(f"Client connected: {request.sid}")
@@ -566,39 +615,72 @@ def handle_webrtc_signal(data):
 @socketio.on('disconnect')# Add this decorator above your function definition.
 # The event name 'video_frame_from_student' is an example;
 # use the actual event name your student-side JS is emitting.
+# In app.py, replace your old handle_video_frame function
+
+# In your app.py file
+
 @socketio.on('video_frame_from_student')
 def handle_video_frame(data):
-    """
-    Received from student: { 'roll_no': '65', 'frame': '<data:image/png;base64,...>' }
-    Relay it to admin_room only.
-    """
     roll_no = data.get('roll_no')
-    frame = data.get('frame')
-    if not roll_no or not frame:
+    frame_b64 = data.get('frame')
+
+    if not roll_no or not frame_b64:
         return
-    # Relay the frame to all clients in the 'admin_room'
-    emit('video_frame', {'roll_no': str(roll_no), 'frame': frame}, room='admin_room')
-def handle_disconnect():
-    print(f"Client disconnected: {request.sid}")
-    if request.sid in connected_students:
-        roll_no = connected_students.pop(request.sid)
-        if roll_no in ACTIVE_EXAMS:
-            del ACTIVE_EXAMS[roll_no]
-            with open(ACTIVE_EXAMS_FILE, 'w') as f:
-                json.dump(ACTIVE_EXAMS, f, indent=4)
-        emit('student_left_exam', {'roll_no': roll_no}, room='admin_room')
-        print(f"Cleaned up disconnected student: {roll_no}")
-# In your app.py
+
+    # --- Task 1: Relay the original frame to the admin ---
+    emit('video_frame', {'roll_no': str(roll_no), 'frame': frame_b64}, room='admin_room')
+
+    # --- Task 2: AI Analysis ---
+    try:
+        # Decode the base64 frame
+        img_data = base64.b64decode(frame_b64.split(',')[1])
+        nparr = np.frombuffer(img_data, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        height, width, channels = img.shape
+
+        # Prepare the image for the AI model
+        blob = cv2.dnn.blobFromImage(img, 0.00392, (320, 320), (0, 0, 0), True, crop=False)
+        net.setInput(blob)
+        outs = net.forward(output_layers)
+
+        # --- Process the model's output ---
+        class_ids = []
+        confidences = []
+        
+        for out in outs:
+            for detection in out:
+                scores = detection[5:]
+                class_id = np.argmax(scores)
+                confidence = scores[class_id]
+                if confidence > 0.5:  # Confidence threshold
+                    class_ids.append(class_id)
+                    confidences.append(float(confidence))
+
+        # --- Check for violations ---
+        detected_objects = [str(classes[class_id]) for class_id in class_ids]
+        
+        # Rule 1: More than one person detected
+        if detected_objects.count('person') > 1:
+            alert_message = 'Multiple People Detected'
+            emit('proctoring_alert', {'roll_no': roll_no, 'alert': alert_message}, room='admin_room')
+            log_proctoring_event(roll_no, 'AI_ALERT', alert_message) # <-- ADD THIS LINE
+
+        # Rule 2: Cell phone detected
+        if 'cell phone' in detected_objects:
+            alert_message = 'Cell Phone Detected'
+            emit('proctoring_alert', {'roll_no': roll_no, 'alert': alert_message}, room='admin_room')
+            log_proctoring_event(roll_no, 'AI_ALERT', alert_message) # <-- ADD THIS LINE
+
+    except Exception as e:
+        print(f"Error during AI processing: {e}")
 
 @socketio.on('send_warning')
 def handle_send_warning(data):
     student_roll_no = data.get('student_roll_no')
     message = data.get('message')
-    
     if student_roll_no and message:
-        # Emit the warning only to the specific student's room
         emit('receive_warning', {'message': message}, room=str(student_roll_no))
-        # In your app.py
+        log_proctoring_event(student_roll_no, 'ADMIN_WARNING', message) # <-- ADD THIS LINE
 
 @socketio.on('terminate_exam')
 def handle_terminate_exam(data):
@@ -618,6 +700,22 @@ def handle_send_warning(data):
         emit('receive_warning', {'message': message}, room=str(student_roll_no))
 
 # ADD THIS FUNCTION
+# In app.py
+
+def log_proctoring_event(roll_no, event_type, message):
+    """Helper function to save a proctoring event to the database."""
+    try:
+        conn = sqlite3.connect('exam_database.db')
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO proctoring_logs (student_roll_no, event_type, message) VALUES (?, ?, ?)",
+            (str(roll_no), event_type, message)
+        )
+        conn.commit()
+        conn.close()
+        print(f"Logged Event for {roll_no}: {message}")
+    except Exception as e:
+        print(f"Database logging error: {e}")
 @socketio.on('terminate_exam')
 def handle_terminate_exam(data):
     student_roll_no = data.get('student_roll_no')

@@ -160,7 +160,29 @@
                         </td>
                     </tr>
                     {% endfor %}
-                </tbody>
+                </tbody>...
+<thead>
+    <tr>
+        <th>Roll No</th>
+        <th>Name</th>
+        <th>Score</th>
+        <th>Status</th>
+        <th>Actions</th> </tr>
+</thead>
+<tbody>
+    {% for result in results %}
+        <tr>
+            <td>{{ result.roll_no }}</td>
+            <td>{{ result.name }}</td>
+            <td>{{ result.score }} / {{ result.total }}</td>
+            <td>{{ result.status }}</td>
+            <td>
+                <a href="{{ url_for('review_session', student_roll_no=result.roll_no) }}" class="btn">Review Session</a>
+            </td>
+        </tr>
+    {% endfor %}
+</tbody>
+...
             </table>
             {% else %}
             <p>No students have completed the exam for this subject yet.</p>

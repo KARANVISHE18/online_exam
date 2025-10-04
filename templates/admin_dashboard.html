@@ -73,11 +73,12 @@
         .header .logout-btn:hover { background-color: rgba(0, 246, 255, 0.1); box-shadow: 0 0 15px var(--primary-glow); }
 
         .proctoring-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
-        }
+    display: grid;
+    /* You can change 250px to any size you like */
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+}
+        
         .student-feed {
             background: var(--card-bg); backdrop-filter: blur(10px);
             border: 1px solid var(--border-color); border-radius: 12px;
@@ -316,7 +317,35 @@
                 target.textContent = 'Terminated';
             }
         }
-    });
+    });// In admin.html, inside the <script> tag
+
+socket.on('proctoring_alert', function(data) {
+    const feed = document.getElementById(`feed-${data.roll_no}`);
+    if (feed) {
+        // Add a glowing red border to highlight the student
+        feed.style.border = '3px solid #ff4d4d';
+        feed.style.boxShadow = '0 0 20px #ff4d4d';
+
+        // Check if an alert message element already exists, if not, create one
+        let alertMsg = document.getElementById(`alert-${data.roll_no}`);
+        if (!alertMsg) {
+            alertMsg = document.createElement('p');
+            alertMsg.id = `alert-${data.roll_no}`;
+            alertMsg.style.color = '#ff4d4d';
+            alertMsg.style.fontWeight = 'bold';
+            alertMsg.style.textAlign = 'center';
+            // Add the alert message after the action buttons
+            const actionsDiv = feed.querySelector('.student-actions');
+            if (actionsDiv) {
+                actionsDiv.insertAdjacentElement('afterend', alertMsg);
+            } else {
+                feed.appendChild(alertMsg);
+            }
+        }
+        // Update the alert text
+        alertMsg.textContent = `🚨 AI ALERT: ${data.alert}!`;
+    }
+});
 </script>
 </body>
 </html>

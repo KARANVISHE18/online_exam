@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Proctoring Review for {{ student_roll_no }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background-color: #010409; 
+            color: #e6edf3; 
+            padding: 40px;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: auto; 
+            background-color: rgba(10, 25, 47, 0.7);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 246, 255, 0.2);
+        }
+        h1 { color: #00f6ff; }
+        .timeline { list-style: none; padding: 0; }
+        .timeline li { 
+            padding: 15px; 
+            border-left: 3px solid #00f6ff;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .timeline li::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background: #00f6ff;
+            border-radius: 50%;
+            position: absolute;
+            left: -8px;
+            top: 18px;
+        }
+        .log-time { font-size: 0.9em; color: rgba(230, 237, 243, 0.7); }
+        .log-message { font-weight: 600; font-size: 1.1em; }
+        .log-type-AI_ALERT { color: #ff4d4d; }
+        .log-type-ADMIN_WARNING { color: #ffc107; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Proctoring Log</h1>
+        <h2>Student: {{ student_name }} ({{ student_roll_no }})</h2>
+        <hr style="border-color: rgba(0, 246, 255, 0.2);">
+
+        <ul class="timeline">
+            {% if logs %}
+                {% for log in logs %}
+                    <li>
+                        <div class="log-time">{{ log['timestamp'] }}</div>
+                        <div class="log-message">
+                            <span class="log-type-{{ log['event_type'] }}">{{ log['event_type'].replace('_', ' ') }}:</span> 
+                            {{ log['message'] }}
+                        </div>
+                    </li>
+                {% endfor %}
+            {% else %}
+                <p>No proctoring events were logged for this student.</p>
+            {% endif %}
+        </ul>
+        <a href="{{ url_for('admin_dashboard') }}" style="color: #00f6ff;">&larr; Back to Dashboard</a>
+    </div>
+</body>
+</html>
