@@ -518,33 +518,36 @@ def allow_reexam(subject, roll_no):
             json.dump(RESULTS, f, indent=4)
     return redirect(url_for('admin_results', subject=subject))
 
-@app.route('/admin/download_results/<subject>')
-def download_results(subject):
+# In your app.py file
+
+@app.route('/admin/results/<subject>')
+def admin_results(subject):
     if not session.get('admin'):
         return redirect(url_for('admin_login_page'))
-    subject_results = []
-    for roll_no, data in RESULTS.items():
-        if subject in data:
-            subject_results.append({
-                'Roll No': roll_no,
-                'Name': data[subject]['name'],
-                'Score': data[subject]['score'],
-                'Total Questions': data[subject]['total'],
-                'Status': data[subject].get('status', 'Completed')
-            })
-    if not subject_results:
-        return "No results to download.", 404
-    df = pd.DataFrame(subject_results)
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Results')
-    output.seek(0)
-    response = make_response(output.getvalue())
-    response.headers["Content-Disposition"] = f"attachment; filename={subject}_results.xlsx"
-    response.headers["Content-type"] = (
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+    full_subject_name = SUBJECT_MAP.get(subject, "Unknown Subject")
+    
+    # --- DATABASE LOGIC (replaces JSON logic) ---
+    conn = sqlite3.connect('exam_database.db')
+    conn.row_factory = sqlite3.Row  # This allows accessing columns by name
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM results WHERE subject_code = ? ORDER BY score DESC",
+        (subject,)
     )
-    return response
+    results_from_db = cursor.fetchall()
+    conn.close()
+    # --- END OF DATABASE LOGIC ---
+    
+    # Convert database rows to a list of dictionaries for the template
+    subject_results = [dict(row) for row in results_from_db]
+
+    return render_template(
+        'admin_results.html',
+        subject_name=full_subject_name,
+        results=subject_results,
+        subject_code=subject
+    )
 
 @app.route('/admin/logout')
 def admin_logout():
