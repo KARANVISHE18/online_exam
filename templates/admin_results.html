@@ -106,7 +106,48 @@
             color: var(--background-color);
             box-shadow: 0 0 15px var(--warning-glow);
         }
+/* In templates/admin_results.html, inside the <style> tag */
 
+.actions-cell {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Base style for the new buttons */
+.actions-cell .btn {
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid;
+    text-decoration: none;
+}
+
+/* --- Style for the "Review" button (cyan) --- */
+.btn-review {
+    color: var(--primary-glow);
+    border-color: var(--primary-glow);
+}
+.btn-review:hover {
+    background-color: var(--primary-glow);
+    box-shadow: 0 0 15px var(--primary-glow);
+    color: var(--background-color); /* Dark text on hover */
+}
+
+/* --- Style for the "Re-exam" button (yellow/amber) --- */
+.btn-reexam {
+    color: #ffc107;
+    border-color: #ffc107;
+}
+.btn-reexam:hover {
+    background-color: #ffc107;
+    box-shadow: 0 0 15px #ffc107;
+    color: var(--background-color);
+}
         @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
@@ -155,12 +196,12 @@
             <td>{{ result.name }}</td>  <td>{{ result.score }} / {{ result.total }}</td>
             <td>{{ result.status }}</td>
             <td class="actions-cell">
-                <a href="{{ url_for('review_session', student_roll_no=result.student_roll_no) }}" class="btn">Review Session</a>
-                
-                <form action="{{ url_for('allow_reexam', subject=subject_code, roll_no=result.student_roll_no) }}" method="POST" style="display: inline;">
-                    <button type="submit" class="btn btn-warning">Allow Re-exam</button>
-                </form>
-            </td>
+    <a href="{{ url_for('review_session', student_roll_no=result.student_roll_no) }}" class="btn btn-review">Review</a>
+    
+    <form action="{{ url_for('allow_reexam', subject=subject_code, roll_no=result.student_roll_no) }}" method="POST" style="display: inline;">
+        <button type="submit" class="btn btn-reexam">Re-exam</button>
+    </form>
+</td>
         </tr>
         {% endfor %}
     </tbody>
