@@ -353,11 +353,13 @@ def exam_page(subject):
 
 # ... (your imports and other code) ...
 
+# In your app.py file
+
 @app.route('/submit', methods=['POST'])
 def submit_exam():
     if 'roll_no' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
-
+    
     data = request.json
     subject = data.get('subject')
     answers = data.get('answers', {})
@@ -365,7 +367,6 @@ def submit_exam():
     student_roll_no = str(session['roll_no'])
     student_name = session['student_name']
 
-    # --- DATABASE LOGIC (replaces JSON logic) ---
     score = 0
     question_bank = QUESTIONS.get(subject, [])
     correct_answers = {str(q['id']): q['answer'] for q in question_bank}
@@ -375,23 +376,27 @@ def submit_exam():
             
     status = "Completed" if "completed" in reason.lower() else "Terminated"
 
-    # Connect to the database and insert the result
-    conn = sqlite3.connect('exam_database.db')
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO results (student_roll_no, subject_code, score, total, status) VALUES (?, ?, ?, ?, ?)",
-        (student_roll_no, subject, score, len(question_bank), status)
-    )
-    conn.commit()
-    conn.close()
-    # --- END OF DATABASE LOGIC ---
-
+    if student_roll_no not in RESULTS:
+        RESULTS[student_roll_no] = {}
+    RESULTS[student_roll_no][subject] = {
+        'name': student_name, 'score': score, 'total': len(question_bank), 'status': status, 'reason': reason
+    }
+    with open('results.json', 'w') as f:
+        json.dump(RESULTS, f, indent=4)
+        
     if student_roll_no in ACTIVE_EXAMS:
         del ACTIVE_EXAMS[student_roll_no]
-        with open(ACTIVE_EXAMS_FILE, 'w') as f:
-            json.dump(ACTIVE_EXAMS, f, indent=4)
+
+    # --- THIS IS THE UPDATED LOGIC ---
+    # It now checks the status and chooses the correct redirect URL
+    if status == "Completed":
+        # You'll also need a 'submission_success.html' template for this to work
+        redirect_url = url_for('submission_success')
+    else: # If status is "Terminated"
+        redirect_url = url_for('exam_terminated')
+    # --- END OF UPDATE ---
             
-    return jsonify({'status': 'success', 'redirect_url': url_for('dashboard')})
+    return jsonify({'status': 'success', 'redirect_url': redirect_url})
 
 @app.route('/submission_success')
 def submission_success():
@@ -412,7 +417,55 @@ def logout():
 
 # --- API & Admin Routes ---
 # In app.py
+# In your app.py file
 
+@app.route('/admin/download_results/<subject>')
+def download_results(subject):
+    if not session.get('admin'):
+        return redirect(url_for('admin_login_page'))
+
+    # Get results for the specific subject from the database
+    conn = sqlite3.connect('exam_database.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT student_roll_no, score, total, status FROM results WHERE subject_code = ?",
+        (subject,)
+    )
+    results_from_db = cursor.fetchall()
+    conn.close()
+
+    if not results_from_db:
+        return "No results to download for this subject.", 404
+
+    # Get student names from the global STUDENTS dictionary
+    student_names = {data['roll_no']: data['name'] for data in STUDENTS.values()}
+
+    # Format data for the Excel file
+    results_list = []
+    for row in results_from_db:
+        roll_no = row['student_roll_no']
+        results_list.append({
+            'Roll No': roll_no,
+            'Name': student_names.get(roll_no, 'Unknown'),
+            'Score': row['score'],
+            'Total Questions': row['total'],
+            'Status': row['status']
+        })
+
+    # Use pandas to create an Excel file in memory
+    df = pd.DataFrame(results_list)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Results')
+    output.seek(0)
+    
+    # Create the response that sends the file to the user's browser
+    response = make_response(output.getvalue())
+    response.headers["Content-Disposition"] = f"attachment; filename={subject}_results.xlsx"
+    response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    
+    return response
 @app.route('/api/questions/<subject>')
 def get_questions(subject):
     if 'roll_no' not in session:
@@ -483,72 +536,66 @@ def add_question(subject):
     QUESTIONS[subject] = subject_questions
     return redirect(url_for('admin_questions', subject=subject))
 
+
+    
+
+
+
+# In your app.py file
+
+# In app.py, REPLACE your admin_results function with this
+
 @app.route('/admin/results/<subject>')
 def admin_results(subject):
     if not session.get('admin'):
         return redirect(url_for('admin_login_page'))
+
     full_subject_name = SUBJECT_MAP.get(subject, "Unknown Subject")
+    
+    conn = sqlite3.connect('exam_database.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM results WHERE subject_code = ? ORDER BY score DESC", (subject,))
+    results_from_db = cursor.fetchall()
+    conn.close()
+    
+    # Get student names from the global STUDENTS dictionary
+    student_names = {data['roll_no']: data['name'] for data in STUDENTS.values()}
+    
+    # Add the student name to each result
     subject_results = []
-    for roll_no, data in RESULTS.items():
-        if subject in data:
-            subject_results.append({
-                'roll_no': roll_no,
-                'name': data[subject]['name'],
-                'score': data[subject]['score'],
-                'total': data[subject]['total'],
-                'status': data[subject].get('status', 'Completed')
-            })
+    for row in results_from_db:
+        result_dict = dict(row)
+        result_dict['name'] = student_names.get(result_dict['student_roll_no'], 'Unknown')
+        subject_results.append(result_dict)
+
     return render_template(
         'admin_results.html',
         subject_name=full_subject_name,
         results=subject_results,
         subject_code=subject
     )
+# In app.py, ADD this new function
 
 @app.route('/admin/allow_reexam/<subject>/<roll_no>', methods=['POST'])
 def allow_reexam(subject, roll_no):
     if not session.get('admin'):
         return redirect(url_for('admin_login_page'))
-    roll_no_str = str(roll_no)
-    if roll_no_str in RESULTS and subject in RESULTS[roll_no_str]:
-        del RESULTS[roll_no_str][subject]
-        if not RESULTS[roll_no_str]:
-            del RESULTS[roll_no_str]
-        with open(RESULTS_FILE, 'w') as f:
-            json.dump(RESULTS, f, indent=4)
+    
+    # Connect to the database and delete the specific result
+    try:
+        conn = sqlite3.connect('exam_database.db')
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM results WHERE student_roll_no = ? AND subject_code = ?",
+            (roll_no, subject)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Database error on re-exam: {e}")
+        
     return redirect(url_for('admin_results', subject=subject))
-
-# In your app.py file
-
-@app.route('/admin/results/<subject>')
-def admin_results(subject):
-    if not session.get('admin'):
-        return redirect(url_for('admin_login_page'))
-
-    full_subject_name = SUBJECT_MAP.get(subject, "Unknown Subject")
-    
-    # --- DATABASE LOGIC (replaces JSON logic) ---
-    conn = sqlite3.connect('exam_database.db')
-    conn.row_factory = sqlite3.Row  # This allows accessing columns by name
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT * FROM results WHERE subject_code = ? ORDER BY score DESC",
-        (subject,)
-    )
-    results_from_db = cursor.fetchall()
-    conn.close()
-    # --- END OF DATABASE LOGIC ---
-    
-    # Convert database rows to a list of dictionaries for the template
-    subject_results = [dict(row) for row in results_from_db]
-
-    return render_template(
-        'admin_results.html',
-        subject_name=full_subject_name,
-        results=subject_results,
-        subject_code=subject
-    )
-
 @app.route('/admin/logout')
 def admin_logout():
     session.pop('admin', None)

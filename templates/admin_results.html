@@ -139,51 +139,32 @@
         <div class="content-card">
             {% if results %}
             <table class="results-table">
-                <thead>
-                    <tr>
-                        <th>Roll No</th>
-                        <th>Name</th>
-                        <th>Score</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for result in results %}
-                    <tr>
-                        <td>{{ result.roll_no }}</td>
-                        <td>{{ result.name }}</td>
-                        <td>{{ result.score }} / {{ result.total }}</td>
-                        <td>
-                            <form action="{{ url_for('allow_reexam', subject=subject_code, roll_no=result.roll_no) }}" method="POST" onsubmit="return confirm('Are you sure you want to allow this student to retake the exam? Their current score will be permanently deleted.');">
-                                <button type="submit" class="btn-reexam">Allow Re-exam</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>...
-<thead>
-    <tr>
-        <th>Roll No</th>
-        <th>Name</th>
-        <th>Score</th>
-        <th>Status</th>
-        <th>Actions</th> </tr>
-</thead>
-<tbody>
-    {% for result in results %}
+    <thead>
         <tr>
-            <td>{{ result.roll_no }}</td>
-            <td>{{ result.name }}</td>
-            <td>{{ result.score }} / {{ result.total }}</td>
+            <th>Roll No</th>
+            <th>Name</th>
+            <th>Score</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for result in results %}
+        <tr>
+            <td>{{ result.student_roll_no }}</td>
+            <td>{{ result.name }}</td>  <td>{{ result.score }} / {{ result.total }}</td>
             <td>{{ result.status }}</td>
-            <td>
-                <a href="{{ url_for('review_session', student_roll_no=result.roll_no) }}" class="btn">Review Session</a>
+            <td class="actions-cell">
+                <a href="{{ url_for('review_session', student_roll_no=result.student_roll_no) }}" class="btn">Review Session</a>
+                
+                <form action="{{ url_for('allow_reexam', subject=subject_code, roll_no=result.student_roll_no) }}" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-warning">Allow Re-exam</button>
+                </form>
             </td>
         </tr>
-    {% endfor %}
-</tbody>
-...
-            </table>
+        {% endfor %}
+    </tbody>
+</table>
             {% else %}
             <p>No students have completed the exam for this subject yet.</p>
             {% endif %}
