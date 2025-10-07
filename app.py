@@ -12,7 +12,6 @@ import random
 import cv2
 import numpy as np
 import base64
-import time
 
 # --- AI Model Setup (YOLO) ---
 # Load the model configuration and weights
@@ -28,17 +27,11 @@ with open(os.path.join(yolo_path, "coco.names"), "r") as f:
 print("AI Model loaded successfully.")
 # --- End of AI Model Setup ---
 
-# DELETE THIS ENTIRE BLOCK
 app = Flask(__name__)
 # IMPORTANT: For production, load this from an environment variable, not hardcoded.
 app.secret_key = 'your_super_secret_key_nhitm'
 socketio = SocketIO(app, async_mode='eventlet')
-# IMPORTANT: For production, load this from an environment variable, not hardcoded.
-from flask_cors import CORS # Make sure this import is at the top of your file
 
-app.secret_key = 'your_super_secret_key_nhitm'
-CORS(app)
-socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 # --- Constants and Configuration ---
 RESULTS_FILE = 'results.json'
 STATUS_FILE = 'exam_status.json'
@@ -65,8 +58,6 @@ def load_json_file(filename, default_data):
     return default_data
 
 # In-memory state loaded from files
-# --- Constants and Configuration ---
-# Define the variables FIRST
 # --- Constants and Configuration ---
 # Define the variables FIRST
 RESULTS_FILE = 'results.json'
@@ -345,34 +336,26 @@ def exam_notice(subject):
 
 @app.route('/exam/<subject_code>')
 def exam_page(subject_code):
-    if 'roll_no' not in session:
+    # ...
+    if 'email' not in session:
         return redirect(url_for('login_page'))
+    student_roll_no = session['roll_no']
 
-    student_roll_no = str(session['roll_no'])
-
-    if student_roll_no in RESULTS and subject_code in RESULTS.get(student_roll_no, {}):
+    # Prevent re-exam if already submitted
+    if str(student_roll_no) in RESULTS and subject_code in RESULTS[str(student_roll_no)]:
         return render_template('exam_ended.html')
 
-    ACTIVE_EXAMS[student_roll_no] = {
-        'name': session['student_name'],
-        'subject': subject_code,
-        'startTime': time.time()
-    }
+    if EXAM_STATUS.get(subject_code) == "inactive":
+        return render_template('exam_inactive.html')
+
+    # Add to active exams
+    ACTIVE_EXAMS[str(student_roll_no)] = {'name': session['student_name'], 'subject': subject_code}
     with open(ACTIVE_EXAMS_FILE, 'w') as f:
-        json.dump(ACTIVE_EXAMS, f)
+        json.dump(ACTIVE_EXAMS, f, indent=4)
 
-    student_info = {
-        'roll_no': student_roll_no,
-        'name': session.get('student_name', 'Student')
-    }
     full_subject_name = SUBJECT_MAP.get(subject_code, "Unknown Subject")
+    return render_template('exam.html', subject=subject_code, subject_name=full_subject_name, roll_no=student_roll_no)
 
-    return render_template(
-        'exam.html',
-        subject_code=subject_code,
-        subject_name=full_subject_name,
-        student=student_info
-    )
 # In app.py
 
 # ... (your imports and other code) ...
@@ -576,18 +559,22 @@ def admin_results(subject):
 
     full_subject_name = SUBJECT_MAP.get(subject, "Unknown Subject")
     
+    conn = sqlite3.connect('exam_database.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM results WHERE subject_code = ? ORDER BY score DESC", (subject,))
+    results_from_db = cursor.fetchall()
+    conn.close()
+    
+    # Get student names from the global STUDENTS dictionary
+    student_names = {data['roll_no']: data['name'] for data in STUDENTS.values()}
+    
+    # Add the student name to each result
     subject_results = []
-    for roll_no, student_data in RESULTS.items():
-        if subject in student_data:
-            result = student_data[subject]
-            subject_results.append({
-                'roll_no': roll_no,
-                'name': result.get('name', 'Unknown'),
-                'score': result.get('score', 0),
-                'total': result.get('total', 0),
-                'status': result.get('status', 'N/A'),
-                'reason': result.get('reason', 'N/A')
-            })
+    for row in results_from_db:
+        result_dict = dict(row)
+        result_dict['name'] = student_names.get(result_dict['student_roll_no'], 'Unknown')
+        subject_results.append(result_dict)
 
     return render_template(
         'admin_results.html',
@@ -597,22 +584,24 @@ def admin_results(subject):
     )
 # In app.py, ADD this new function
 
-# In app.py, make sure you have this function
-
 @app.route('/admin/allow_reexam/<subject>/<roll_no>', methods=['POST'])
 def allow_reexam(subject, roll_no):
     if not session.get('admin'):
         return redirect(url_for('admin_login_page'))
     
-    roll_no_str = str(roll_no)
-    
-    # This logic removes the result from the RESULTS dictionary
-    if roll_no_str in RESULTS and subject in RESULTS[roll_no_str]:
-        del RESULTS[roll_no_str][subject]
-        # Save the updated results back to the JSON file
-        with open(RESULTS_FILE, 'w') as f:
-            json.dump(RESULTS, f, indent=4)
-            
+    # Connect to the database and delete the specific result
+    try:
+        conn = sqlite3.connect('exam_database.db')
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM results WHERE student_roll_no = ? AND subject_code = ?",
+            (roll_no, subject)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Database error on re-exam: {e}")
+        
     return redirect(url_for('admin_results', subject=subject))
 @app.route('/admin/logout')
 def admin_logout():
@@ -651,58 +640,96 @@ def review_session(student_roll_no):
         student_roll_no=student_roll_no,
         student_name=student_name
     )
-# --- SocketIO Events ---
-
 @socketio.on('connect')
 def handle_connect():
     print(f"Client connected: {request.sid}")
 
-@socketio.on('disconnect')
-def handle_disconnect():
-    if request.sid in connected_students:
-        roll_no = connected_students.pop(request.sid)
-        emit('student_left_exam', {'roll_no': roll_no}, room='admin_room')
-        print(f"Student {roll_no} disconnected.")
-
 @socketio.on('admin_join')
 def handle_admin_join():
     join_room('admin_room')
-    print(f"Admin joined room: {request.sid}")
+    print(f"Admin joined: {request.sid}")
     emit('active_students_list', ACTIVE_EXAMS, room=request.sid)
 
 @socketio.on('student_join')
 def handle_student_join(data):
-    roll_no = str(data.get('roll_no'))
+    roll_no = data.get('roll_no')
     if roll_no:
-        connected_students[request.sid] = roll_no
+        connected_students[request.sid] = str(roll_no)
         join_room(roll_no)
-        emit('student_started_exam', {'roll_no': roll_no, 'info': ACTIVE_EXAMS.get(roll_no)}, room='admin_room')
+        emit(
+            'student_started_exam',
+            {'roll_no': roll_no, 'info': ACTIVE_EXAMS.get(str(roll_no))},
+            room='admin_room'
+        )
         print(f"Student {roll_no} joined with SID {request.sid}")
+
+@socketio.on('webrtc_signal')
+def handle_webrtc_signal(data):
+    recipient_room = data.get('recipient_room')
+    if recipient_room:
+        emit('webrtc_signal', data, room=recipient_room, include_self=False)
+
+@socketio.on('disconnect')# Add this decorator above your function definition.
+# The event name 'video_frame_from_student' is an example;
+# use the actual event name your student-side JS is emitting.
+# In app.py, replace your old handle_video_frame function
+
+# In your app.py file
 
 @socketio.on('video_frame_from_student')
 def handle_video_frame(data):
-    roll_no, frame_b64 = data.get('roll_no'), data.get('frame')
-    if not (roll_no and frame_b64 and net): return
+    roll_no = data.get('roll_no')
+    frame_b64 = data.get('frame')
+
+    if not roll_no or not frame_b64:
+        return
+
+    # --- Task 1: Relay the original frame to the admin ---
     emit('video_frame', {'roll_no': str(roll_no), 'frame': frame_b64}, room='admin_room')
+
+    # --- Task 2: AI Analysis ---
     try:
+        # Decode the base64 frame
         img_data = base64.b64decode(frame_b64.split(',')[1])
         nparr = np.frombuffer(img_data, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        blob = cv2.dnn.blobFromImage(img, 1/255.0, (416, 416), swapRB=True, crop=False)
+        height, width, channels = img.shape
+
+        # Prepare the image for the AI model
+        blob = cv2.dnn.blobFromImage(img, 0.00392, (320, 320), (0, 0, 0), True, crop=False)
         net.setInput(blob)
         outs = net.forward(output_layers)
-        detected_objects = []
+
+        # --- Process the model's output ---
+        class_ids = []
+        confidences = []
+        
         for out in outs:
             for detection in out:
                 scores = detection[5:]
                 class_id = np.argmax(scores)
-                if scores[class_id] > 0.5: detected_objects.append(str(classes[class_id]))
+                confidence = scores[class_id]
+                if confidence > 0.5:  # Confidence threshold
+                    class_ids.append(class_id)
+                    confidences.append(float(confidence))
+
+        # --- Check for violations ---
+        detected_objects = [str(classes[class_id]) for class_id in class_ids]
+        
+        # Rule 1: More than one person detected
         if detected_objects.count('person') > 1:
-            emit('proctoring_alert', {'roll_no': roll_no, 'alert': 'Multiple People Detected'}, room='admin_room')
+            alert_message = 'Multiple People Detected'
+            emit('proctoring_alert', {'roll_no': roll_no, 'alert': alert_message}, room='admin_room')
+            log_proctoring_event(roll_no, 'AI_ALERT', alert_message) # <-- ADD THIS LINE
+
+        # Rule 2: Cell phone detected
         if 'cell phone' in detected_objects:
-            emit('proctoring_alert', {'roll_no': roll_no, 'alert': 'Cell Phone Detected'}, room='admin_room')
+            alert_message = 'Cell Phone Detected'
+            emit('proctoring_alert', {'roll_no': roll_no, 'alert': alert_message}, room='admin_room')
+            log_proctoring_event(roll_no, 'AI_ALERT', alert_message) # <-- ADD THIS LINE
+
     except Exception as e:
-        print(f"AI processing error: {e}")
+        print(f"Error during AI processing: {e}")
 
 @socketio.on('send_warning')
 def handle_send_warning(data):
@@ -710,12 +737,47 @@ def handle_send_warning(data):
     message = data.get('message')
     if student_roll_no and message:
         emit('receive_warning', {'message': message}, room=str(student_roll_no))
+        log_proctoring_event(student_roll_no, 'ADMIN_WARNING', message) # <-- ADD THIS LINE
 
 @socketio.on('terminate_exam')
 def handle_terminate_exam(data):
     student_roll_no = data.get('student_roll_no')
     if student_roll_no:
+        # Emit termination event to the specific student
         emit('exam_terminated', {'reason': 'Your exam has been terminated by the administrator.'}, room=str(student_roll_no))
+        # In app.py, in the SocketIO Events section
 
+# ADD THIS FUNCTION
+@socketio.on('send_warning')
+def handle_send_warning(data):
+    student_roll_no = data.get('student_roll_no')
+    message = data.get('message')
+    if student_roll_no and message:
+        # Emit the warning only to the specific student's room
+        emit('receive_warning', {'message': message}, room=str(student_roll_no))
+
+# ADD THIS FUNCTION
+# In app.py
+
+def log_proctoring_event(roll_no, event_type, message):
+    """Helper function to save a proctoring event to the database."""
+    try:
+        conn = sqlite3.connect('exam_database.db')
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO proctoring_logs (student_roll_no, event_type, message) VALUES (?, ?, ?)",
+            (str(roll_no), event_type, message)
+        )
+        conn.commit()
+        conn.close()
+        print(f"Logged Event for {roll_no}: {message}")
+    except Exception as e:
+        print(f"Database logging error: {e}")
+@socketio.on('terminate_exam')
+def handle_terminate_exam(data):
+    student_roll_no = data.get('student_roll_no')
+    if student_roll_no:
+        # Emit termination event to the specific student
+        emit('exam_terminated', {'reason': 'Your exam has been terminated by the administrator.'}, room=str(student_roll_no))
 if __name__ == '__main__':
     socketio.run(app, debug=True)
