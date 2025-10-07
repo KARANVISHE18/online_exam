@@ -507,7 +507,6 @@ def handle_terminate_exam(data):
     student_roll_no = data.get('student_roll_no')
     if student_roll_no:
         emit('exam_terminated', {'reason': 'Your exam has been terminated by the administrator.'}, room=str(student_roll_no))
-headers: { "Content-Type": "application/json" }
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)
