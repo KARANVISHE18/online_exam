@@ -33,5 +33,14 @@
             "status": "Terminated",
             "reason": "Screenshot attempt"
         }
+    },
+    "60": {
+        "tcs": {
+            "name": "SUROSHE ARYAN PRADIP",
+            "score": 0,
+            "total": 30,
+            "status": "Terminated",
+            "reason": "Screenshot attempt"
+        }
     }
 }
