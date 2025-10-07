@@ -186,7 +186,7 @@
             <th>Name</th>
             <th>Score</th>
             <th>Status</th>
-            <th>Actions</th>
+           
         </tr>
     </thead>
     <tbody>
@@ -195,13 +195,7 @@
             <td>{{ result.student_roll_no }}</td>
             <td>{{ result.name }}</td>  <td>{{ result.score }} / {{ result.total }}</td>
             <td>{{ result.status }}</td>
-            <td class="actions-cell">
-    <a href="{{ url_for('review_session', student_roll_no=result.student_roll_no) }}" class="btn btn-review">Review</a>
-    
-    <form action="{{ url_for('allow_reexam', subject=subject_code, roll_no=result.student_roll_no) }}" method="POST" style="display: inline;">
-        <button type="submit" class="btn btn-reexam">Re-exam</button>
-    </form>
-</td>
+            
         </tr>
         {% endfor %}
     </tbody>
