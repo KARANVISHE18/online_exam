@@ -280,7 +280,7 @@ function displayQuestion() {
     async function startWebcamAndCalibrate() {
         try {
             calibrationTitle.textContent = 'Requesting Camera Access...';
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             videoEl.srcObject = stream;
             
             calibrationTitle.textContent = 'Initializing Proctor Stream...';
@@ -295,8 +295,61 @@ function displayQuestion() {
             console.error("Camera Error:", err);
             throw new Error("Webcam access is required for this exam and was denied.");
         }
-    }
+    }// In your exam.html <script>
 
+async function startProctoring() {
+    try {
+        // Change audio to 'true' to request microphone access
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); 
+        videoEl.srcObject = stream;
+        
+        startFrameEmitter(videoEl);
+        startAudioAnalysis(stream); // <-- ADD THIS NEW LINE
+        listenForSecurityEvents();
+
+    } catch (err) {
+        throw new Error("Webcam and Microphone access are required for this exam.");
+    }
+}
+// In your exam.html <script>
+
+function startAudioAnalysis(stream) {
+    const audioContext = new AudioContext();
+    const analyser = audioContext.createAnalyser();
+    const microphone = audioContext.createMediaStreamSource(stream);
+    microphone.connect(analyser);
+    
+    analyser.fftSize = 512;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const THRESHOLD = 30; // Adjust this value based on testing. Higher = less sensitive.
+    let isSpeaking = false;
+    
+    function checkAudio() {
+        if (examTerminated) return; // Stop checking if the exam is over
+
+        analyser.getByteFrequencyData(dataArray);
+        let sum = dataArray.reduce((a, b) => a + b, 0);
+        let average = sum / bufferLength;
+
+        if (average > THRESHOLD && !isSpeaking) {
+            isSpeaking = true; // Set flag to prevent sending too many alerts
+            console.log("Suspicious noise detected! Level:", average);
+            
+            // Send an alert to the server
+            socket.emit('audio_alert', { 'roll_no': STUDENT_ROLL_NO });
+
+            // Reset the flag after a few seconds (cooldown period)
+            setTimeout(() => { isSpeaking = false; }, 3000); 
+        }
+        
+        // Loop to keep checking the audio
+        requestAnimationFrame(checkAudio);
+    }
+    
+    checkAudio();
+}
     // --- ** NEW: Live Streaming Logic (Base64 Frames) ** ---
     function startFrameEmitter(videoElement, stream) {
         const canvas = document.createElement('canvas');

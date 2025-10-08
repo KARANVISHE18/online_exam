@@ -630,7 +630,15 @@ def handle_terminate_exam(data):
         emit('exam_terminated', {'reason': reason}, room=str(student_roll_no))
         log_proctoring_event(student_roll_no, 'ADMIN_TERMINATE', reason)
 
+# In your app.py file
 
+@socketio.on('audio_alert')
+def handle_audio_alert(data):
+    roll_no = data.get('roll_no')
+    if roll_no:
+        print(f"AUDIO ALERT: Suspicious noise detected for Roll No: {roll_no}")
+        # We can reuse the same alert system as the AI
+        emit('proctoring_alert', {'roll_no': roll_no, 'alert': 'Suspicious Noise Detected'}, room='admin_room')
 if __name__ == '__main__':
     init_db()  # Ensure database and tables exist before running the app
     socketio.run(app, debug=True)
