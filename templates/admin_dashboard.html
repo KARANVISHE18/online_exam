@@ -237,13 +237,18 @@
 
         /* --- Grid for Student Feeds/Placeholders --- */
         #live-proctoring-grid {
-            flex-grow: 1;
-            display: grid;
-            /* This is the line that makes the feeds small and responsive */
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
-            gap: 25px;
-            align-content: flex-start; /* Prevent stretching if few items */
-        }
+    flex-grow: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 25px;
+    align-content: flex-start;
+
+    /* --- ADD THESE LINES --- */
+    max-width: 800px; /* Limit the grid's maximum width */
+    margin: 0 auto;   /* Center the grid within the card */
+    /* --- END ADDED LINES --- */
+}
+        
 
         /* Styling for the central "Scanning" message when no students */
         #no-students-message {
