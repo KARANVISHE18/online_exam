@@ -13,6 +13,13 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
     <style>
+        .student-feed img {
+            display: block;
+            width: 100%;       /* Make it fill its container's width */
+            height: auto;      /* THIS IS THE FIX: sets height automatically */
+            aspect-ratio: 4 / 3; /* Forces a 4:3 shape (most webcams) */
+            object-fit: cover; /* Prevents any stretching */
+            background-color: #111;}
         /* --- Root Variables & Theme (Electric Blue / Magenta) --- */
         :root {
             --primary-glow: #00BFFF; /* Electric Blue */
