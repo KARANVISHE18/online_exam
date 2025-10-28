@@ -232,7 +232,8 @@
         #live-proctoring-grid {
             flex-grow: 1;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); /* Responsive grid, slightly wider */
+            /* This is the line that makes the feeds small and responsive */
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
             gap: 25px;
             align-content: flex-start; /* Prevent stretching if few items */
         }
@@ -375,12 +376,16 @@
                     <span>Students</span>
                 </a>
                 <a href="{{ url_for('admin_manage_subjects') }}">
-                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
                     <span>Subjects</span>
                 </a>
                  <a href="{{ url_for('admin_results') }}">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 100 15 7.5 7.5 0 000-15zM21 21l-5.197-5.197" /></svg>
                     <span>Results</span>
+                </a>
+                <a href="{{ url_for('admin_profile') }}">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    <span>Profile</span>
                 </a>
             </nav>
         </aside>
@@ -393,12 +398,7 @@
             
             <section class="proctoring-card" id="proctoring-card">
                 <h2>Live Proctoring</h2>
-                <nav class="nav-menu">
-    <a href="{{ url_for('admin_dashboard') }}"><span>Dashboard</span></a>
-    <!-- ... other links ... -->
-    <a href="{{ url_for('admin_profile') }}"><span>Profile</span></a>
-    <a href="{{ url_for('admin_results') }}"><span>Results</span></a>
-</nav>
+                
                 <div id="live-proctoring-grid">
                     <div id="no-students-message">
                         SCANNING FOR ACTIVE EXAMS...
@@ -493,7 +493,7 @@
              }
              // Check if only the message div is left
              if (proctoringGrid.querySelectorAll('.student-feed').length === 0) {
-                if(noStudentsMessage) noStudentsMessage.style.display = 'flex';
+                 if(noStudentsMessage) noStudentsMessage.style.display = 'flex';
              }
         }
 
@@ -514,18 +514,18 @@
                 feed.classList.add('student-alert');
                 const statusSpan = feed.querySelector('.student-info .status');
                 if (statusSpan) {
-                     statusSpan.textContent = `ALERT: ${alertMessage}`;
-                     statusSpan.classList.remove('ok');
-                     statusSpan.classList.add('alert');
+                    statusSpan.textContent = `ALERT: ${alertMessage}`;
+                    statusSpan.classList.remove('ok');
+                    statusSpan.classList.add('alert');
                 }
                 // Clear alert visual after 5 seconds
                 setTimeout(() => {
                     feed.classList.remove('student-alert');
-                     if (statusSpan) {
+                    if (statusSpan) {
                         statusSpan.textContent = 'Status: OK';
                         statusSpan.classList.remove('alert');
                         statusSpan.classList.add('ok');
-                     }
+                    }
                 }, 5000);
             }
         }
@@ -562,16 +562,16 @@
         socket.on('student_started_exam', (data) => {
              console.log('ADMIN: Student started:', data);
              if(data && data.roll_no) {
-                addStudentFeed(data.roll_no, data.info);
+                 addStudentFeed(data.roll_no, data.info);
              } else {
-                console.error("ADMIN: Received invalid student_started_exam data", data);
+                 console.error("ADMIN: Received invalid student_started_exam data", data);
              }
         });
 
         socket.on('student_left_exam', (data) => {
              console.log('ADMIN: Student left:', data);
               if(data && data.roll_no) {
-                removeStudentFeed(data.roll_no);
+                 removeStudentFeed(data.roll_no);
               } else {
                  console.error("ADMIN: Received invalid student_left_exam data", data);
               }
@@ -581,7 +581,7 @@
             if(data && data.roll_no && data.frame) {
                 // Use requestAnimationFrame to prevent layout thrashing
                 requestAnimationFrame(() => {
-                     updateStudentVideo(data.roll_no, data.frame);
+                    updateStudentVideo(data.roll_no, data.frame);
                 });
             }
         });
