@@ -861,11 +861,41 @@ def admin_manage_questions(subject_id):
     cursor.execute("SELECT * FROM questions WHERE subject_id = ?", (subject_id,)); questions = cursor.fetchall(); conn.close()
     if not subject: flash("Subject Not Found", "error"); return redirect(url_for('admin_manage_subjects'))
     return render_template('admin_questions.html', subject=subject, questions=questions) # Needs template
-
 @app.route('/admin/questions/add/<int:subject_id>', methods=['POST'])
 @admin_required
 def admin_add_question(subject_id):
-    # ... (add question logic) ...
+    # 1. READ INPUTS
+    text = request.form.get('text')
+    opt1 = request.form.get('option1')
+    opt2 = request.form.get('option2')
+    opt3 = request.form.get('option3')
+    opt4 = request.form.get('option4')
+    correct = request.form.get('correct_answer')
+    
+    # 2. VALIDATION (Failure here flashes error)
+    if not all([text, opt1, opt2, opt3, opt4, correct]): 
+        flash('All fields required.', 'error')
+        return redirect(url_for('admin_manage_questions', subject_id=subject_id))
+    
+    if correct not in [opt1, opt2, opt3, opt4]: 
+        flash('Correct answer mismatch.', 'error')
+        return redirect(url_for('admin_manage_questions', subject_id=subject_id))
+    
+    # 3. DATABASE INSERT (Failure here needs logging/debugging)
+    conn = None
+    try:
+        conn = sqlite3.connect(DB_FILE); cursor = conn.cursor()
+        cursor.execute("INSERT INTO questions (text, option1, option2, option3, option4, correct_answer, subject_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                       (text, opt1, opt2, opt3, opt4, correct, subject_id))
+        conn.commit()
+        flash('Question added.', 'success')
+    except Exception as e:
+        # 4. ERROR CATCHING
+        if conn: conn.rollback()
+        flash(f'Error adding question: {e}', 'error') # <--- We need to see this!
+    finally:
+        if conn: conn.close()
+    
     return redirect(url_for('admin_manage_questions', subject_id=subject_id))
 
 @app.route('/admin/questions/upload/<int:subject_id>', methods=['POST'])
