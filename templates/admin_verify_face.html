@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Verification</title>
+    
+    <script src="{{ url_for('static', filename='face-api.min.js') }}"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- Page Style --- */
+        body {
+            /* Use the Poppins font, with a standard fallback */
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            
+            /* 3. Animated Gradient Background */
+            background: linear-gradient(135deg, #2c3e50, #4a569d, #2980b9, #8e44ad);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+
+        /* 4. Gradient Animation Keyframes */
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* --- Main Card (Frosted Glass Effect) --- */
+        .verify-card {
+            /* 5. The "Frosted Glass" effect */
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px); /* Safari support */
+            
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            width: 600px;
+            text-align: center;
+            
+            /* 6. Card fade-in animation */
+            animation: fadeIn 0.7s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* --- Card Text (Must be light) --- */
+        .verify-card h2 {
+            margin-top: 0;
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 2em;
+        }
+
+        .verify-card p {
+            color: #e0e0e0; /* Slightly dimmer white */
+            font-size: 1.1em;
+            margin-bottom: 25px;
+            font-weight: 300;
+        }
+        
+        .verify-card strong {
+            font-weight: 500;
+        }
+
+        /* --- Video Container --- */
+        #video-container {
+            position: relative;
+            width: 100%;
+            padding-top: 75%; /* 4:3 Aspect Ratio */
+            border-radius: 12px; /* More rounded */
+            overflow: hidden;
+            background: #000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            display: none; /* Hidden by default */
+        }
+
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /* --- Status & Loading --- */
+        #status-container {
+            margin-top: 25px;
+            height: 30px; /* Reserve space to prevent layout shift */
+        }
+
+        #status {
+            font-size: 1.1em;
+            font-weight: 500;
+            color: #ffffff; /* Default white */
+            transition: color 0.3s ease; /* Smooth color change */
+        }
+
+        /* --- CSS Loading Spinner (Styled) --- */
+        .loader-container {
+            padding: 50px 0;
+        }
+        .loader {
+            /* 7. Spinner styled for the dark, glassy theme */
+            border: 8px solid rgba(255, 255, 255, 0.2); /* Light track */
+            border-top: 8px solid #ffffff; /* Solid white spinner */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="verify-card" id="verify-card">
+        <h2>Admin Verification</h2>
+        <p>Welcome, <strong>{{ admin_name }}</strong>. Please look at the camera to log in.</p>
+
+        <div id="video-container">
+            <video id="video" autoplay muted playsinline></video>
+        </div>
+        
+        <div class="loader-container" id="loader-container">
+            <div class="loader"></div>
+        </div>
+
+        <div id="status-container">
+            <p id="status">Loading AI Models...</p>
+        </div>
+    </div>
+
+    <input type="hidden" id="stored-descriptor" value="{{ stored_descriptor }}">
+
+    <script>
+        const video = document.getElementById('video');
+        const statusEl = document.getElementById('status');
+        const videoContainer = document.getElementById('video-container');
+        const loaderContainer = document.getElementById('loader-container');
+        const card = document.getElementById('verify-card');
+        
+        const storedDescriptorValue = document.getElementById('stored-descriptor').value;
+        let detectionInterval;
+
+        const MODEL_URL = '/static/models'; 
+        
+        // --- Color Palette for Statuses ---
+        const COLOR_INFO = '#ffffff';
+        const COLOR_SUCCESS = '#4CAF50';
+        const COLOR_WARNING = '#FFC107';
+        const COLOR_ERROR = '#F44336';
+        
+        let faceMatcher = null;
+
+        async function loadModels() {
+            try {
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+                
+                if (!storedDescriptorValue) {
+                    statusEl.innerText = "Error: Face not registered.";
+                    statusEl.style.color = COLOR_ERROR;
+                    loaderContainer.style.display = 'none';
+                    return;
+                }
+                
+                const descriptorArray = JSON.parse(storedDescriptorValue);
+                const storedDescriptor = new Float32Array(descriptorArray);
+                
+                const labeledFaceDescriptors = [
+                    new faceapi.LabeledFaceDescriptors('admin', [storedDescriptor])
+                ];
+                
+                faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
+                startCamera();
+
+            } catch (err) {
+                console.error("Model Loading Error:", err);
+                statusEl.innerText = 'Error loading AI models.';
+                statusEl.style.color = COLOR_ERROR;
+                loaderContainer.style.display = 'none';
+            }
+        }
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+                video.srcObject = stream;
+                statusEl.innerText = 'Please look at the camera.';
+                
+                videoContainer.style.display = 'block';
+                loaderContainer.style.display = 'none';
+
+            } catch (err) {
+                console.error("Camera Error:", err);
+                statusEl.innerText = 'Error: Could not access camera.';
+                statusEl.style.color = COLOR_ERROR;
+                loaderContainer.style.display = 'none';
+            }
+        }
+
+        async function completeVerification() {
+            try {
+                const response = await fetch('/admin/complete_verification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    statusEl.innerText = 'Login failed. Please try again.';
+                    statusEl.style.color = COLOR_ERROR;
+                }
+            } catch (err) {
+                console.error("Verification POST Error:", err);
+                statusEl.innerText = 'Error communicating with server.';
+                statusEl.style.color = COLOR_ERROR;
+            }
+        }
+
+        video.addEventListener('play', () => {
+            if (!faceMatcher) {
+                statusEl.innerText = 'Error: Face matcher not ready.';
+                statusEl.style.color = COLOR_ERROR;
+                return;
+            }
+            
+            const canvas = faceapi.createCanvasFromMedia(video);
+            document.getElementById('video-container').append(canvas);
+            
+            const displaySize = { width: videoContainer.clientWidth, height: videoContainer.clientHeight };
+            faceapi.matchDimensions(canvas, displaySize);
+            
+            card.style.width = `${videoContainer.clientWidth}px`;
+
+            detectionInterval = setInterval(async () => {
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks()
+                    .withFaceDescriptors();
+                
+                const resizedDetections = faceapi.resizeResults(detections, displaySize);
+                canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+                
+                if (resizedDetections.length > 0) {
+                    const result = resizedDetections[0];
+                    const bestMatch = faceMatcher.findBestMatch(result.descriptor);
+
+                    if (bestMatch.label === 'admin') {
+                        statusEl.innerText = 'Verification Successful! Logging in...';
+                        statusEl.style.color = COLOR_SUCCESS;
+                        
+                        clearInterval(detectionInterval);
+                        video.pause();
+                        video.srcObject.getTracks().forEach(track => track.stop());
+                        
+                        const box = resizedDetections[0].detection.box;
+                        const drawBox = new faceapi.draw.DrawBox(box, { label: 'Verified', boxColor: COLOR_SUCCESS, drawLabel: true });
+                        drawBox.draw(canvas);
+
+                        // Wait 1 second before redirecting
+                        setTimeout(completeVerification, 1000);
+
+                    } else {
+                        statusEl.innerText = 'Verifying... (Face not recognized)';
+                        statusEl.style.color = COLOR_WARNING;
+                        
+                        const box = resizedDetections[0].detection.box;
+                        const drawBox = new faceapi.draw.DrawBox(box, { label: 'Unknown', boxColor: COLOR_ERROR, drawLabel: true });
+                        drawBox.draw(canvas);
+                    }
+                } else {
+                    statusEl.innerText = 'Please look at the camera.';
+                    statusEl.style.color = COLOR_INFO;
+                }
+            }, 500); 
+        });
+
+        // Start everything
+        loadModels();
+    </script>
+</body>
+</html>

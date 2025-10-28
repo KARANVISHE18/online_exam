@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subject Selection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --background-color: #0A192F;
+            --text-color: #E6F1FF;
+            --secondary-text: rgba(230, 241, 255, 0.7);
+            --border-color-glow: rgba(0, 246, 255, 0.3);
+            --card-bg: rgba(10, 25, 47, 0.5);
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+        }
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 40px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            color: #fff;
+            text-shadow: 0 0 10px #00f6ff;
+        }
+        .header p {
+            font-size: 1.1rem;
+            color: var(--secondary-text);
+        }
+        .subjects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+        }
+        .subject-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color-glow);
+            border-radius: 12px;
+            padding: 30px;
+            text-decoration: none;
+            color: var(--text-color);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            text-align: center;
+        }
+        .subject-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 10px 25px rgba(0, 246, 255, 0.15);
+        }
+        .subject-card h3 {
+            font-family: 'Orbitron', sans-serif;
+            margin: 0 0 15px 0;
+            font-size: 1.3rem;
+            color: #00f6ff;
+        }
+        .subject-card p {
+            color: var(--secondary-text);
+            margin-bottom: 25px;
+        }
+        .btn-start-exam {
+            padding: 12px 25px;
+            background: rgba(0, 246, 255, 0.1);
+            color: var(--text-color);
+            border: 1px solid var(--border-color-glow);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        .btn-start-exam:hover {
+            background: #00f6ff;
+            color: var(--background-color);
+            box-shadow: 0 0 20px #00f6ff;
+        }
+         .back-link {
+            display: inline-block;
+            margin-top: 40px;
+            color: var(--secondary-text);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .back-link:hover {
+            color: #00f6ff;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="bg-canvas"></canvas>
+    <div class="container">
+        <div class="header">
+            <h1>Select a Subject</h1>
+            <p>{{ branch_name }} - Year {{ year }}</p>
+        </div>
+
+        <div class="subjects-grid">
+            {% if subjects %}
+                {% for code, details in subjects.items() %}
+                <div class="subject-card">
+                    <h3>{{ details.name }}</h3>
+                    <p>Code: {{ code.upper() }}</p>
+                    <a href="{{ url_for('exam_notice', subject=code) }}" class="btn-start-exam">Start Exam</a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="text-align: center; grid-column: 1 / -1;">No subjects are available for this selection.</p>
+            {% endif %}
+        </div>
+        <div style="text-align: center;">
+            <a href="{{ url_for('college_dashboard') }}" class="back-link">&larr; Back to Department Selection</a>
+        </div>
+    </div>
+<script>
+    // Reusing the same background animation
+    const bgCanvas = document.getElementById('bg-canvas');
+    const bgCtx = bgCanvas.getContext('2d');
+    let particles = [];
+    bgCanvas.width = window.innerWidth;
+    bgCanvas.height = window.innerHeight;
+
+    class Particle {
+        constructor() {
+            this.x = Math.random() * bgCanvas.width;
+            this.y = Math.random() * bgCanvas.height;
+            this.size = Math.random() * 1.5 + 0.5;
+            this.speedX = Math.random() * 0.5 - 0.25;
+            this.speedY = Math.random() * 0.5 - 0.25;
+        }
+        update() {
+            this.x += this.speedX;
+            this.y += this.speedY;
+            if (this.x < 0 || this.x > bgCanvas.width) this.speedX *= -1;
+            if (this.y < 0 || this.y > bgCanvas.height) this.speedY *= -1;
+        }
+        draw() {
+            bgCtx.fillStyle = 'rgba(0, 246, 255, 0.5)';
+            bgCtx.beginPath();
+            bgCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            bgCtx.fill();
+        }
+    }
+
+    function initParticles() {
+        for (let i = 0; i < 50; i++) {
+            particles.push(new Particle());
+        }
+    }
+    
+    function animateParticles() {
+        bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+        for (let i = 0; i < particles.length; i++) {
+            particles[i].update();
+            particles[i].draw();
+        }
+        requestAnimationFrame(animateParticles);
+    }
+    initParticles();
+    animateParticles();
+     window.addEventListener('resize', () => {
+        bgCanvas.width = window.innerWidth;
+        bgCanvas.height = window.innerHeight;
+    });
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin | Exam Results</title>
+    <title>Admin | Subject Management</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -66,69 +66,50 @@
         .logout-btn { /* Same style */ padding: 10px 25px; background: transparent; border: 2px solid var(--border-color); border-radius: 8px; color: var(--secondary-text); font-family: var(--font-display); font-size: 1rem; cursor: pointer; transition: all 0.3s ease; text-decoration: none; }
         .logout-btn:hover { background: var(--primary-glow); border-color: var(--primary-glow); color: var(--background-dark); box-shadow: 0 0 20px var(--primary-glow); transform: translateY(-2px); }
 
-        /* --- Flash Messages Area (Same Style) --- */
+        /* --- Flash Messages Area (Same as Student Management) --- */
         #flash-messages { margin-bottom: 30px; display: flex; flex-direction: column; gap: 15px; }
-        .flash-message { /* ... Same styles as before ... */ }
-        @keyframes fadeInSlideDown { /* ... Same styles as before ... */ }
+        .flash-message { padding: 15px 20px; border-radius: 8px; border-left: 5px solid; background: rgba(0,0,0,0.3); display: flex; align-items: center; font-size: 0.95rem; animation: fadeInSlideDown 0.5s ease-out forwards; opacity: 0; transform: translateY(-10px); }
+        .flash-message svg { width: 20px; height: 20px; margin-right: 15px; flex-shrink: 0; }
+        .flash-message.success { border-color: var(--success-glow); color: var(--success-glow); } .flash-message.success svg { color: var(--success-glow); }
+        .flash-message.error { border-color: var(--error-glow); color: var(--error-glow); } .flash-message.error svg { color: var(--error-glow); }
+        .flash-message.info { border-color: var(--primary-glow); color: var(--primary-glow); } .flash-message.info svg { color: var(--primary-glow); }
+        @keyframes fadeInSlideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* --- Content Cards (Filter & Results) --- */
+        /* --- Content Cards (Form & Table) --- */
         .content-card { background: var(--card-bg); backdrop-filter: blur(15px) saturate(160%); padding: 30px; border-radius: 15px; border: 1px solid var(--border-color); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3); transform-style: preserve-3d; transition: transform 0.1s linear, box-shadow 0.3s ease; margin-bottom: 30px; }
         .content-card h2 { font-family: var(--font-display); font-weight: 600; color: var(--text-color); border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin: 0 0 30px 0; font-size: 1.5rem; letter-spacing: 0.5px; }
 
-        /* --- Filter Form Styling --- */
-        .filter-form { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; /* Allow wrapping on smaller screens */ }
-        .form-group { display: flex; flex-direction: column; } /* Keep label if needed */
-        .form-group label { /* Same label style */ }
-        .filter-form select {
-            padding: 12px 15px; background: var(--input-bg); border: 1px solid var(--border-color);
-            border-radius: 6px; color: var(--text-color); font-size: 1rem;
-            font-family: var(--font-body); transition: all 0.3s ease;
-            appearance: none; -webkit-appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%23e0f0ff' opacity='0.7'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5' /%3E%3C/svg%3E");
-            background-repeat: no-repeat; background-position: right 15px center; background-size: 16px;
-            padding-right: 40px; min-width: 180px;
-        }
-        .filter-form select:focus {
-            outline: none; border-color: var(--primary-glow);
-            background-color: rgba(0, 191, 255, 0.05);
-            box-shadow: 0 0 15px rgba(0, 191, 255, 0.3);
-        }
-        .filter-form .btn {
-            padding: 12px 30px; background: transparent; border: 2px solid var(--primary-glow);
-            border-radius: 8px; color: var(--primary-glow); font-size: 1rem;
-            font-weight: 600; font-family: var(--font-display); cursor: pointer;
-            transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px;
-            margin-left: auto; /* Push button to the right if space allows */
-        }
-        .filter-form .btn:hover { background: var(--primary-glow); color: var(--background-dark); box-shadow: 0 0 25px var(--primary-glow); transform: translateY(-2px); }
+        /* --- Add Subject Form Styling --- */
+        #add-subject-form .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px 30px; align-items: end; /* Align items to bottom for button */ }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { font-size: 0.85rem; color: var(--secondary-text); margin-bottom: 8px; font-weight: 300; letter-spacing: 0.5px; text-transform: uppercase; }
+        .form-group input, .form-group select { padding: 12px 15px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-color); font-size: 1rem; font-family: var(--font-body); transition: all 0.3s ease; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary-glow); background: rgba(0, 191, 255, 0.05); box-shadow: 0 0 15px rgba(0, 191, 255, 0.3); }
+        .form-group select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%23e0f0ff' opacity='0.7'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5' /%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 15px center; background-size: 16px; padding-right: 40px; }
 
-        /* --- Results List Table Styling --- */
+        /* Add Subject Button */
+        .btn { padding: 12px 30px; background: transparent; border: 2px solid var(--primary-glow); border-radius: 8px; color: var(--primary-glow); font-size: 1rem; font-weight: 600; font-family: var(--font-display); cursor: pointer; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; margin-top: 10px; /* Aligns with bottom of inputs */}
+        .btn:hover { background: var(--primary-glow); color: var(--background-dark); box-shadow: 0 0 25px var(--primary-glow); transform: translateY(-2px); }
+
+        /* --- Subject List Table Styling --- */
         .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         .data-table th, .data-table td { padding: 15px; text-align: left; border-bottom: 1px solid var(--border-color); font-weight: 400; font-size: 0.95rem; }
         .data-table thead { background-color: rgba(0, 191, 255, 0.05); }
         .data-table th { font-family: var(--font-display); font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; color: var(--secondary-text); }
         .data-table tbody tr:hover { background-color: rgba(0, 191, 255, 0.03); }
         .data-table td { color: var(--text-color); }
-        .data-table td.actions { text-align: right; white-space: nowrap; }
+        .data-table td.actions { text-align: right; }
 
-        /* "Allow Re-exam" Button */
-        .btn-reexam {
-            background-color: transparent;
-            border: 1px solid var(--error-glow);
-            color: var(--error-glow);
-            padding: 8px 15px; /* Slightly larger */
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-family: var(--font-mono);
-            transition: all 0.3s ease;
-            text-transform: uppercase;
+        /* Manage Questions Button in Table */
+        .btn-manage {
+            padding: 8px 18px; background: transparent; border: 1px solid var(--secondary-glow);
+            border-radius: 6px; color: var(--secondary-glow); font-size: 0.85rem;
+            font-weight: 600; font-family: var(--font-mono); cursor: pointer;
+            transition: all 0.3s ease; text-decoration: none; white-space: nowrap;
         }
-        .btn-reexam:hover {
-            background-color: var(--error-glow);
-            color: var(--background-dark);
-            box-shadow: 0 0 15px var(--error-glow);
-            transform: scale(1.05);
+        .btn-manage:hover {
+            background: var(--secondary-glow); color: var(--background-dark);
+            box-shadow: 0 0 15px var(--secondary-glow); transform: scale(1.05);
         }
 
     </style>
@@ -157,11 +138,11 @@
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-4.67c.12-.318.232-.656.328-1.014a.75.75 0 011.498-.07c.096.358.208.71.328 1.014.453 1.196.992 2.303 1.634 3.336" /></svg>
                     <span>Students</span>
                 </a>
-                <a href="{{ url_for('admin_manage_subjects') }}">
+                <a href="{{ url_for('admin_manage_subjects') }}" class="active">
                      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
                     <span>Subjects</span>
                 </a>
-                 <a href="{{ url_for('admin_results') }}" class="active">
+                 <a href="{{ url_for('admin_results') }}">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 100 15 7.5 7.5 0 000-15zM21 21l-5.197-5.197" /></svg>
                     <span>Results</span>
                 </a>
@@ -170,85 +151,109 @@
 
         <main class="main-content" id="main-content">
             <header class="header">
-                <h1>Exam Results</h1>
+                <h1>Subject Management</h1>
                 <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
             </header>
 
-             <div id="flash-messages">
+            <div id="flash-messages">
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
                         <div class="flash-message {{ category }}">
-                             <span>{{ message }}</span>
+                            <span>{{ message }}</span>
                         </div>
                         {% endfor %}
                     {% endif %}
                 {% endwith %}
             </div>
 
-            <section class="content-card" id="filter-card">
-                <h2>Filter Results</h2>
-                <form class="filter-form" action="{{ url_for('admin_results') }}" method="POST">
-                    <div class="form-group">
-                        <select name="branch_code">
-                            <option value="">All Branches</option>
-                            {% for code, name in branches.items() %}
-                            <option value="{{ code }}" {% if selected_branch == code %}selected{% endif %}>{{ name }}</option>
-                            {% endfor %}
-                        </select>
+            <section class="content-card" id="add-subject-card">
+                <h2>Add New Subject</h2>
+                <form id="add-subject-form" action="{{ url_for('admin_add_subject') }}" method="POST">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="name">Subject Name</label>
+                            <input type="text" id="name" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="code">Subject Code</label>
+                            <input type="text" id="code" name="code" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="branch_code">Branch</label>
+                            <select id="branch_code" name="branch_code" required>
+                                <option value="" disabled selected>Select Branch</option>
+                                {% for code, name in branches.items() %}
+                                <option value="{{ code }}">{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="year">Year</label>
+                            <select id="year" name="year" required>
+                                <option value="" disabled selected>Select Year</option>
+                                <option value="1">1st Year</option>
+                                <option value="2">2nd Year</option>
+                                <option value="3">3rd Year</option>
+                                <option value="4">4th Year</option>
+                            </select>
+                        </div>
+                         <button type="submit" class="btn">Add Subject</button>
                     </div>
-                    <div class="form-group">
-                         <select name="year">
-                            <option value="">All Years</option>
-                            {% for y in [1, 2, 3, 4] %}
-                            <option value="{{ y }}" {% if selected_year == y|string %}selected{% endif %}>{{ y }} Year</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <button type="submit" class="btn">Filter</button>
                 </form>
             </section>
 
-            <section class="content-card" id="results-list-card">
-                <h2>Results List</h2>
+            <section class="content-card" id="subject-list-card">
+                <h2>Existing Subjects</h2>
                 <div style="overflow-x: auto;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Roll No</th>
-                                <th>Student Name</th>
-                                <th>Subject</th>
-                                <th>Score</th>
-                                <th>Status</th>
-                                <th>Date</th>
-                                <th class="actions">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for result in results %}
-                            <tr>
-                                <td>{{ result.student_roll_no }}</td>
-                                <td>{{ result.student_name }}</td>
-                                <td>{{ result.subject_name }}</td>
-                                <td>{{ result.score }} / {{ result.total }}</td>
-                                <td>{{ result.status }}</td>
-                                <td>{{ result.timestamp.split(' ')[0] }}</td>
-                                <td class="actions">
-                                    <form
-                                      action="{{ url_for('admin_reexam', result_id=result.result_id) }}"
-                                      method="POST"
-                                      onsubmit="return confirm('Are you sure you want to delete this result? The student will have to retake the exam.');">
-                                        <button type="submit" class="btn-reexam">Allow Re-exam</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="7" style="text-align: center; color: var(--secondary-text);">No results found for the selected criteria.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    <!-- Inside templates/admin_subjects.html -->
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Code</th>
+                            <th>Branch</th>
+                            <th>Year</th>
+                            <th>Status</th>  <!-- ADDED HEADER -->
+                            <th class="actions">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subject in subjects %}
+                        <tr>
+                            <td>{{ subject.name }}</td>
+                            <td>{{ subject.code }}</td>
+                            <!-- Use global branches dict here -->
+                            <td>{{ branches.get(subject.branch_code, 'N/A') }}</td> 
+                            <td>{{ subject.year }}</td>
+                            <!-- ADDED STATUS CELL -->
+                            <td>
+                                {% if subject.is_active == 1 %}
+                                    <span class="status-active">Active</span>
+                                {% else %}
+                                    <span class="status-inactive">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="actions">
+                                <a href="{{ url_for('admin_manage_questions', subject_id=subject.id) }}" class="btn-manage">Manage Questions</a>
+                                <!-- ADDED TOGGLE BUTTON FORM -->
+                                <form action="{{ url_for('admin_toggle_subject_status', subject_id=subject.id) }}" method="POST" style="display: inline;">
+                                    {% if subject.is_active == 1 %}
+                                        <button type="submit" class="btn-toggle btn-deactivate" title="Make Inactive">Deactivate</button>
+                                    {% else %}
+                                        <button type="submit" class="btn-toggle btn-activate" title="Make Active">Activate</button>
+                                    {% endif %}
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <!-- Updated colspan to 6 -->
+                            <td colspan="6" style="text-align: center; color: var(--secondary-text);">No subjects found. Add one above.</td> 
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
                 </div>
             </section>
         </main>
@@ -257,7 +262,7 @@
     <script>
         /**
          * Animation 1: Plexus Network Background
-         * (Include the full JS code: Particle class, initParticles, drawConnections, animateParticles, and event listeners)
+         * (Include the full JS code from previous examples: Particle class, initParticles, drawConnections, animateParticles, and event listeners)
          */
         const canvas = document.getElementById('bg-canvas');
         const ctx = canvas.getContext('2d');
@@ -272,7 +277,7 @@
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.getElementById('main-content');
         const cards = document.querySelectorAll('.content-card');
-        const maxRotate = 5;
+        const maxRotate = 5; // Subtler rotation
 
         function applyParallax(element, container, e, maxRot, invert = false) { /* ... [Same as previous example] ... */ }
         function resetParallax(element) { /* ... [Same as previous example] ... */ }

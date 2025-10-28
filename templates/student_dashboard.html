@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard | {{ branch_name }}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- Root Variables & Theme (Same as Cinematic Desktop Login) --- */
+        :root {
+            --primary-glow: #00e6ff; /* Cyan */
+            --secondary-glow: #ff00ea; /* Magenta */
+            --tertiary-glow: #6a00ff; /* Violet */
+            --background-dark: #02011a; /* Very Dark Blue-Purple */
+            --card-bg: rgba(10, 5, 30, 0.6); /* Slightly darker card */
+            --card-bg-hover: rgba(15, 8, 40, 0.7);
+            --border-color: rgba(0, 230, 255, 0.2);
+            --border-color-hover: rgba(0, 230, 255, 0.5);
+            --text-color: #e0f7fa; /* Light aqua */
+            --secondary-text: rgba(224, 247, 250, 0.7);
+            --font-display: 'Orbitron', sans-serif;
+            --font-body: 'Poppins', sans-serif;
+            --font-mono: 'Share Tech Mono', monospace;
+        }
+
+        /* --- Global & Body Setup --- */
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: var(--font-body);
+            color: var(--text-color);
+            overflow: hidden; /* Prevent scrollbars due to full-screen design */
+            background-color: var(--background-dark);
+            perspective: 1500px;
+        }
+
+        /* --- Animated Background Canvas --- */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        /* --- Subtle HUD Grid Overlay --- */
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(0, 230, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 230, 255, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.5;
+            pointer-events: none;
+            z-index: 0;
+            animation: pulseGrid 10s infinite alternate ease-in-out;
+        }
+        @keyframes pulseGrid {
+            from { opacity: 0.3; }
+            to { opacity: 0.6; }
+        }
+
+        /* --- Main Layout Container --- */
+        .dashboard-container {
+            position: relative;
+            z-index: 1;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 40px;
+            box-sizing: border-box;
+            overflow-y: auto; /* Allow scrolling if content overflows */
+        }
+
+        /* --- Header Section --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .header-title h1 {
+            font-family: var(--font-display);
+            font-size: 2.5rem;
+            margin: 0;
+            color: var(--primary-glow);
+            text-shadow: 0 0 15px var(--primary-glow);
+            letter-spacing: 1px;
+        }
+        .header-title p {
+            font-size: 1rem;
+            margin: 5px 0 0 0;
+            color: var(--secondary-text);
+            font-weight: 300;
+        }
+
+        /* --- Logout Button --- */
+        .logout-btn {
+            padding: 10px 25px;
+            background: transparent;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--secondary-text);
+            font-family: var(--font-display);
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        .logout-btn:hover {
+            background: var(--primary-glow);
+            border-color: var(--primary-glow);
+            color: var(--background-dark);
+            box-shadow: 0 0 20px var(--primary-glow);
+            transform: translateY(-2px);
+        }
+
+        /* --- Subjects Section --- */
+        .subjects-section {
+            flex-grow: 1; /* Take remaining space */
+        }
+        .subjects-section h2 {
+            font-family: var(--font-display);
+            font-size: 1.8rem;
+            color: var(--text-color);
+            margin-bottom: 30px;
+            text-align: center;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        /* --- Subject Cards Grid --- */
+        .subjects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive grid */
+            gap: 30px;
+            padding-bottom: 40px; /* Space at bottom */
+            transform-style: preserve-3d; /* Enable 3D for cards */
+        }
+
+        /* --- Individual Subject Card --- */
+        .subject-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(15px) saturate(160%);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1); /* Smooth transition */
+            transform: rotateY(0deg) rotateX(0deg); /* Initial 3D state */
+            transform-style: preserve-3d;
+            position: relative; /* For pseudo-elements */
+            overflow: hidden; /* For glow effect */
+
+            /* Inner glowing border effect */
+            &::before {
+                content: '';
+                position: absolute;
+                inset: -1px; /* Fit just outside border */
+                border-radius: 13px;
+                background: linear-gradient(45deg, var(--primary-glow), var(--secondary-glow));
+                z-index: -1;
+                filter: blur(15px);
+                opacity: 0; /* Hidden by default */
+                transition: opacity 0.3s ease;
+            }
+        }
+
+        .subject-card:hover {
+            background: var(--card-bg-hover);
+            border-color: var(--border-color-hover);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4);
+            transform: translateY(-10px) scale(1.03) rotateY(var(--rotateY, 0deg)) rotateX(var(--rotateX, 0deg)); /* Lift and tilt */
+        }
+        
+        .subject-card:hover::before {
+            opacity: 0.2; /* Show glow on hover */
+        }
+
+        .subject-card h3 {
+            font-family: var(--font-heading);
+            font-size: 1.4rem;
+            color: var(--text-color);
+            margin: 0 0 10px 0;
+            font-weight: 600;
+            transform: translateZ(20px); /* Lift text */
+        }
+
+        .subject-code {
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: var(--secondary-text);
+            margin-bottom: 25px;
+            display: block; /* Make it block for margin */
+            transform: translateZ(10px);
+        }
+
+        /* --- "Start Exam" Button --- */
+        .start-exam-btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: transparent;
+            border: 2px solid var(--primary-glow);
+            border-radius: 8px;
+            color: var(--primary-glow);
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: var(--font-display);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transform: translateZ(15px); /* Lift button */
+        }
+
+        .start-exam-btn:hover {
+            background: var(--primary-glow);
+            color: var(--background-dark);
+            box-shadow: 0 0 25px var(--primary-glow);
+            transform: translateZ(20px) scale(1.05); /* Pop out more */
+        }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+    <div class="grid-overlay"></div>
+
+    <div class="dashboard-container">
+        <header class="header">
+            <div class="header-title">
+                <h1>{{ branch_name }}</h1>
+                <p>Welcome, {{ student_name }}. Select a subject to begin.</p>
+            </div>
+            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+        </header>
+
+        <section class="subjects-section">
+            <h2>Year {{ year }} Subjects</h2>
+
+            <div class="subjects-grid" id="subjects-grid">
+                
+                {% if subjects %}
+                    {% for code, subject_data in subjects.items() %}
+                    <div class="subject-card" data-code="{{ code }}">
+                        <h3>{{ subject_data.name }}</h3>
+                        <span class="subject-code">Code: {{ code }}</span>
+                     <a href="{{ url_for('exam_notice', subject_code=code) }}" class="start-exam-btn">Start Exam</a>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="text-align: center; color: var(--secondary-text);">No subjects assigned for your year and branch.</p>
+                {% endif %}
+
+            </div>
+        </section>
+    </div>
+
+    <script>
+        /**
+         * Animation 1: Cosmic Dust Background
+         * Slow moving particles for a deep space feel.
+         */
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height, particles;
+        const particleCount = 300; // More subtle density
+        const particleSpeedFactor = 0.1; // Slower movement
+
+        function initParticles() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            particles = [];
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * particleSpeedFactor;
+                this.vy = (Math.random() - 0.5) * particleSpeedFactor;
+                this.size = Math.random() * 1.5 + 0.5;
+                this.opacity = Math.random() * 0.5 + 0.2; // Dimmer particles
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                // Wrap around edges
+                if (this.x < 0) this.x = width;
+                if (this.x > width) this.x = 0;
+                if (this.y < 0) this.y = height;
+                if (this.y > height) this.y = 0;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                // Mix colors for variety
+                let color;
+                const rand = Math.random();
+                if (rand < 0.33) color = `rgba(0, 230, 255, ${this.opacity})`; // Cyan
+                else if (rand < 0.66) color = `rgba(255, 0, 234, ${this.opacity * 0.8})`; // Magenta
+                else color = `rgba(106, 0, 255, ${this.opacity * 0.6})`; // Violet
+                
+                ctx.fillStyle = color;
+                ctx.fill();
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, width, height); // Clear canvas
+            
+            for (const p of particles) {
+                p.update();
+                p.draw();
+            }
+            requestAnimationFrame(animateParticles);
+        }
+
+        window.addEventListener('resize', initParticles);
+        initParticles();
+        animateParticles();
+
+
+        /**
+         * Animation 2: 3D Card Parallax Tilt on Hover
+         */
+        const grid = document.getElementById('subjects-grid');
+        const maxRotate = 8; // Max tilt in degrees
+
+        grid.addEventListener('mousemove', (e) => {
+            const card = e.target.closest('.subject-card');
+            if (!card) return; // Exit if not hovering over a card
+
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left - rect.width / 2;
+            const y = e.clientY - rect.top - rect.height / 2;
+            
+            const rotateY = (x / (rect.width / 2)) * maxRotate;
+            const rotateX = -(y / (rect.height / 2)) * maxRotate;
+            
+            // Apply rotation via CSS variables for smoother updates in CSS
+            card.style.setProperty('--rotateX', `${rotateX}deg`);
+            card.style.setProperty('--rotateY', `${rotateY}deg`);
+        });
+
+        grid.addEventListener('mouseleave', (e) => {
+            // Reset all cards when mouse leaves the grid container
+            grid.querySelectorAll('.subject-card').forEach(card => {
+                card.style.setProperty('--rotateX', `0deg`);
+                card.style.setProperty('--rotateY', `0deg`);
+                // Note: The translateY and scale are handled purely by CSS hover
+            });
+        }, true); // Use capture phase to ensure it triggers even if over a card
+
+    </script>
+
+</body>
+</html>

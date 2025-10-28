@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Console | {{ subject_name }}</title>
+    <title>Admin | Manage Questions</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary-glow: #00f6ff;
@@ -16,28 +16,15 @@
             --text-color: #e6edf3;
             --secondary-text: rgba(230, 237, 243, 0.7);
         }
-
         body {
             font-family: 'Poppins', sans-serif;
             background-color: var(--background-color);
             color: var(--text-color);
             margin: 0;
-            min-height: 100vh;
+            height: 100vh;
             display: flex;
             overflow: hidden;
-            position: relative;
         }
-
-        #matrix-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            opacity: 0.3;
-        }
-
         .sidebar {
             width: 300px;
             flex-shrink: 0;
@@ -48,159 +35,130 @@
             display: flex;
             flex-direction: column;
             z-index: 2;
-            animation: slideInLeft 1s ease-out;
         }
-
-        .sidebar-header { text-align: center; margin-bottom: 50px; }
-        .sidebar-header h2 { font-family: 'Orbitron', sans-serif; margin: 0; font-size: 1.8rem; color: var(--primary-glow); letter-spacing: 1px; text-shadow: 0 0 10px var(--primary-glow); }
+        .sidebar-header h2 { font-family: 'Orbitron', sans-serif; margin: 0 0 40px 0; font-size: 1.8rem; color: var(--primary-glow); text-shadow: 0 0 10px var(--primary-glow); text-align: center;}
         
-        .nav-menu a { display: flex; align-items: center; padding: 15px; color: var(--secondary-text); text-decoration: none; border-radius: 8px; margin-bottom: 10px; transition: all 0.3s ease; border: 1px solid transparent; }
+        .nav-menu a { display: flex; align-items: center; padding: 15px; color: var(--secondary-text); text-decoration: none; border-radius: 8px; margin-bottom: 10px; transition: all 0.3s ease; border: 1px solid transparent; font-weight: 600; }
         .nav-menu a.active, .nav-menu a:hover { background-color: rgba(0, 246, 255, 0.1); color: #fff; border-color: var(--border-color); }
-        .nav-menu a svg { margin-right: 15px; }
+        .nav-menu a svg { margin-right: 15px; width: 24px; height: 24px; }
 
-        .info-panel { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border-color); }
-        .info-panel h3 { font-family: 'Orbitron', sans-serif; font-size: 1rem; color: var(--secondary-text); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; }
-        .info-item { display: flex; align-items: center; margin-bottom: 10px; font-size: 0.9rem; }
-        .info-indicator { width: 8px; height: 8px; border-radius: 50%; background-color: #28a745; margin-right: 10px; box-shadow: 0 0 8px #28a745; }
-
-        .main-content {
-            flex-grow: 1;
-            padding: 40px 50px;
-            overflow-y: auto;
-            animation: fadeIn 1.5s ease-out;
-        }
-        .main-content::-webkit-scrollbar { width: 6px; }
-        .main-content::-webkit-scrollbar-thumb { background-color: var(--primary-glow); border-radius: 3px; }
-
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        .main-content { flex-grow: 1; padding: 40px 50px; overflow-y: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .header h1 { font-family: 'Orbitron', sans-serif; margin: 0; font-size: 2.8rem; color: #fff; }
-        .header a.logout-btn { color: var(--primary-glow); text-decoration: none; font-weight: 600; border: 1px solid var(--border-color); padding: 8px 15px; border-radius: 8px; transition: all 0.3s ease; }
-        .header a.logout-btn:hover { background-color: rgba(0, 246, 255, 0.1); box-shadow: 0 0 15px var(--primary-glow); }
-        
+        .header-meta { color: var(--secondary-text); margin-bottom: 40px; font-size: 1.1rem; }
+
         .content-card { background: var(--card-bg); backdrop-filter: blur(10px); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 30px; }
         .content-card h2 { font-family: 'Orbitron', sans-serif; font-weight: 500; color: var(--primary-glow); border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 25px; }
-        
-        .form-group { margin-bottom: 25px; position: relative; }
-        .form-group input { width: 100%; padding: 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; font-size: 1rem; color: var(--text-color); transition: all 0.2s ease; }
-        .form-group input:focus { border-color: var(--primary-glow); box-shadow: 0 0 0 2px rgba(0, 246, 255, 0.3), inset 0 0 10px rgba(0, 246, 255, 0.1); outline: none; }
-        
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--secondary-text); }
+        .form-group input, .form-group textarea {
+            width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color);
+            border-radius: 8px; box-sizing: border-box; font-size: 1rem; color: var(--text-color);
+        }
         .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         
-        .btn { padding: 14px 35px; background: transparent; color: var(--primary-glow); border: 1px solid var(--primary-glow); border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all 0.3s ease; position: relative; overflow: hidden; }
-        .btn:hover { background: var(--primary-glow); color: var(--background-color); box-shadow: 0 0 25px var(--primary-glow); }
+        .btn { padding: 12px 30px; background: var(--primary-glow); color: var(--background-color); border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 700; transition: all 0.3s ease; }
+        .btn:hover { box-shadow: 0 0 15px var(--primary-glow); }
+        .btn-secondary { background: transparent; color: var(--primary-glow); border: 1px solid var(--primary-glow); }
 
-        .question-accordion details { background: transparent; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 15px; transition: all 0.3s ease; }
-        .question-accordion details:hover { border-color: var(--primary-glow); box-shadow: 0 0 15px rgba(0, 246, 255, 0.2); }
-        .question-accordion summary { padding: 20px; cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+        .question-accordion details { border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 10px; }
+        .question-accordion summary { padding: 15px; cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; align-items: center; }
         .question-accordion summary::-webkit-details-marker { display: none; }
-        .question-accordion summary::after { content: '+'; font-size: 1.5rem; transition: transform 0.3s ease; }
-        .question-accordion details[open] summary::after { transform: rotate(45deg); }
-        .question-accordion .question-body { padding: 0 20px 20px 20px; }
-        .question-accordion ol { margin: 0; padding-left: 20px; color: var(--secondary-text); }
-        .question-accordion small { display: block; margin-top: 10px; color: var(--primary-glow); font-weight: 600; }
-        
-        @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
+        .question-accordion .question-body { padding: 0 15px 15px 15px; border-top: 1px solid var(--border-color); }
+        .question-accordion ol { list-style-type: upper-alpha; padding-left: 20px; }
+        .question-accordion .correct-answer { color: var(--active-glow, #00ff8c); font-weight: bold; }
     </style>
 </head>
 <body>
-    <canvas id="matrix-canvas"></canvas>
-    
     <aside class="sidebar">
         <div class="sidebar-header">
             <h2>Admin Console</h2>
         </div>
         <nav class="nav-menu">
             <a href="{{ url_for('admin_dashboard') }}">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 01-6.23-.693L4.2 15.3m15.6 0-1.57.393m0 0l-1.57.393m0 0l-1.57.393m0 0l-1.57.393M4.2 15.3l1.57.393m0 0l1.57.393m0 0l1.57.393m0 0l1.57.393m0 0l1.57.393M12 21v-3.5M4.2 15.3l-1.57-.393M19.8 15.3l1.57-.393" /></svg>
                 <span>Dashboard</span>
             </a>
-            <a href="#" class="active">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                <span>Manage Questions</span>
+            <a href="{{ url_for('admin_manage_students') }}">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-4.67c.12-.318.232-.656.328-1.014a.75.75 0 011.498-.07c.096.358.208.71.328 1.014.453 1.196.992 2.303 1.634 3.336" /></svg>
+                <span>Students</span>
+            </a>
+            <a href="{{ url_for('admin_manage_subjects') }}" class="active">
+                 <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+                <span>Subjects</span>
+            </a>
+             <a href="{{ url_for('admin_results') }}">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 100 15 7.5 7.5 0 000-15zM21 21l-5.197-5.197" /></svg>
+                <span>Results</span>
             </a>
         </nav>
-        <div class="info-panel">
-            <h3>System Status</h3>
-            <div class="info-item"><div class="info-indicator"></div>Online</div>
-            <div class="info-item"><div class="info-indicator"></div>Exams Active</div>
-        </div>
     </aside>
 
     <main class="main-content">
         <div class="header">
-            <h1>Subject: {{ subject_name }}</h1>
-            <a href="{{ url_for('admin_logout') }}" class="logout-btn">Logout</a>
+            <h1>{{ subject.name }}</h1>
         </div>
-
+        <div class="header-meta">
+            Branch: {{ subject.branch_code.upper() }} | Year: {{ subject.year }} | Code: {{ subject.code }}
+        </div>
+        
         <div class="content-card">
             <h2>Add New Question</h2>
-            <form action="{{ url_for('add_question', subject=subject_code) }}" method="POST">
-                <div class="form-group"><input type="text" name="question_text" required placeholder="Question Text"></div>
+            <form action="{{ url_for('admin_add_question', subject_id=subject.id) }}" method="POST">
+                <div class="form-group">
+                    <label for="text">Question Text</label>
+                    <textarea name="text" id="text" rows="3" required></textarea>
+                </div>
                 <div class="options-grid">
                     <div class="form-group"><input type="text" name="option1" required placeholder="Option A"></div>
                     <div class="form-group"><input type="text" name="option2" required placeholder="Option B"></div>
                     <div class="form-group"><input type="text" name="option3" required placeholder="Option C"></div>
                     <div class="form-group"><input type="text" name="option4" required placeholder="Option D"></div>
                 </div>
-                <div class="form-group"><input type="text" name="correct_answer" required placeholder="Correct Answer (exact text)"></div>
-                <button type="submit" class="btn">Add to Question Bank</button>
+                <div class="form-group">
+                    <label for="correct_answer">Correct Answer (must match one option exactly)</label>
+                    <input type="text" name="correct_answer" id="correct_answer" required>
+                </div>
+                <button type="submit" class="btn">Add Question</button>
+            </form>
+        </div>
+        
+        <div class="content-card">
+            <h2>Bulk Upload Questions</h2>
+            <form action="{{ url_for('admin_upload_questions', subject_id=subject.id) }}" method="POST" enctype="multipart/form-data">
+                <p>Upload an Excel (.xlsx) file with columns: text, option1, option2, option3, option4, correct_answer</p>
+                 <div class="form-group">
+                    <input type="file" name="file" accept=".xlsx" required class="btn-secondary">
+                 </div>
+                <button type="submit" class="btn">Upload File</button>
             </form>
         </div>
 
         <div class="content-card">
-            <h2>Current Question Bank</h2>
+            <h2>Current Question Bank ({{ questions|length }})</h2>
             <div class="question-accordion">
                 {% if questions %}
                     {% for q in questions %}
                     <details>
-                        <summary><strong>Q{{ q.id }}: {{ q.text }}</strong></summary>
+                        <summary><strong>{{ loop.index }}: {{ q.text }}</strong></summary>
                         <div class="question-body">
-                            <ol type="A">{% for option in q.options %}<li>{{ option }}</li>{% endfor %}</ol>
-                            <small>Answer: {{ q.answer }}</small>
+                            <ol>
+                                <li>{{ q.option1 }}</li>
+                                <li>{{ q.option2 }}</li>
+                                <li>{{ q.option3 }}</li>
+                                <li>{{ q.option4 }}</li>
+                            </ol>
+                            <p><strong>Answer:</strong> <span class="correct-answer">{{ q.correct_answer }}</span></p>
                         </div>
                     </details>
                     {% endfor %}
                 {% else %}
-                    <p>No questions found. Use the form above to build the question bank.</p>
+                <p>No questions have been added for this subject yet.</p>
                 {% endif %}
             </div>
         </div>
     </main>
-
-    <script>
-        // Matrix Rain Effect Script
-        const canvas = document.getElementById('matrix-canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        const alphabet = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッンABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        const fontSize = 16;
-        const columns = canvas.width / fontSize;
-        const rainDrops = Array.from({ length: columns }).fill(1);
-
-        const draw = () => {
-            ctx.fillStyle = 'rgba(1, 4, 9, 0.05)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = 'rgba(0, 246, 255, 0.7)';
-            ctx.font = fontSize + 'px monospace';
-            for (let i = 0; i < rainDrops.length; i++) {
-                const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
-                ctx.fillText(text, i * fontSize, rainDrops[i] * fontSize);
-                if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-                    rainDrops[i] = 0;
-                }
-                rainDrops[i]++;
-            }
-        };
-        setInterval(draw, 33);// Add this to your student's exam.html script
-
-socket.on('exam_terminated', (data) => {
-    // This calls the function you already have for submitting the exam
-    submitExam(data.reason);
-});
-    </script>
 </body>
 </html>
 

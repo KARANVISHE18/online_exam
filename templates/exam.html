@@ -3,15 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exam Console | {{ subject_name }}</title>
+    <!-- Ensure subject_name is passed from Flask -->
+    <title>Exam Console | {{ subject_name or 'Loading...' }}</title> 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <style>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.12/dist/bundle.min.js"></script>
+
+<style>
+
+    
+    
         :root {
             --primary-glow: #00f6ff;
             --secondary-glow: #ff00c1;
+            --error-glow: #ff4d4d;
             --background-color: #010409;
             --card-bg: rgba(10, 25, 47, 0.6);
             --border-color: rgba(0, 246, 255, 0.25);
@@ -29,7 +39,7 @@
             justify-content: center;
             overflow: hidden;
         }
-        #hud-canvas {
+        #hud-canvas { /* Optional background animation canvas */
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.5;
         }
         #exam-container {
@@ -37,6 +47,7 @@
             backdrop-filter: blur(15px); border: 1px solid var(--border-color);
             border-radius: 15px; box-shadow: 0 0 30px rgba(0, 246, 255, 0.1);
             display: flex; flex-direction: column; animation: fadeInZoom 1s ease-out forwards; opacity: 0;
+            position: relative; /* Needed for absolute positioning of overlays */
         }
         .exam-header {
             display: flex; justify-content: space-between; align-items: center;
@@ -47,76 +58,110 @@
             color: var(--primary-glow); text-shadow: 0 0 8px var(--primary-glow);
         }
         #timer-container {
-            width: 300px; height: 10px; background: rgba(0,0,0,0.3);
-            border: 1px solid var(--border-color); border-radius: 5px; position: relative;
-        }
-        #timer-progress {
-            width: 100%; height: 100%; background: linear-gradient(90deg, var(--secondary-glow), var(--primary-glow));
-            border-radius: 5px; transition: width 1s linear;
+            min-width: 150px; /* Prevent shrinking */
+            position: relative;
+            text-align: right;
         }
         #timer-text {
-            position: absolute; right: -60px; top: 50%; transform: translateY(-50%);
-            font-family: 'Orbitron', sans-serif; font-size: 1.2rem;
+            font-family: 'Orbitron', sans-serif; font-size: 1.4rem;
+            padding: 5px 10px;
+            border-radius: 5px;
+            background-color: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
         }
+         /* Simple progress bar if needed later */
+        /* #timer-progress { width: 100%; height: 100%; background: linear-gradient(90deg, var(--secondary-glow), var(--primary-glow)); border-radius: 5px; transition: width 1s linear; } */
+
         .exam-body {
             display: flex; flex-grow: 1; padding: 30px; gap: 30px; overflow: hidden; position: relative;
         }
-        #calibration-overlay {
-            position: absolute; top: 0; left: 0; right: 280px; bottom: 0;
+
+        /* Overlay Styling */
+        .status-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(1, 4, 9, 0.9); z-index: 10; display: flex;
             justify-content: center; align-items: center; flex-direction: column;
-            transition: opacity 0.5s ease-out;
+            transition: opacity 0.5s ease-out; text-align: center; padding: 20px;
         }
-        #calibration-overlay h3 { font-family: 'Orbitron', sans-serif; font-size: 1.5rem; color: var(--primary-glow); margin-bottom: 10px; }
-        #calibration-overlay p { color: var(--secondary-text); }
-        .main-panel { flex-grow: 1; display: flex; flex-direction: column; }
-        #question-area { flex-grow: 1; }
-        .navigation-buttons { margin-top: auto; align-self: flex-end; }
+        .status-overlay h3 { font-family: 'Orbitron', sans-serif; font-size: 1.5rem; color: var(--primary-glow); margin-bottom: 10px; }
+        .status-overlay p { color: var(--secondary-text); margin-bottom: 20px;}
+        .status-overlay.error h3 { color: var(--error-glow); }
+
+        #warning-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: rgba(0,0,0,0.8); z-index: 1000; color: white; 
+            display: none; /* Initially hidden */
+            justify-content: center; align-items: center; text-align: center; 
+            font-size: 1.5rem; backdrop-filter: blur(5px); padding: 20px;
+        }
+
+        .main-panel { flex-grow: 1; display: flex; flex-direction: column; overflow-y: auto; padding-right: 15px;}
+        #question-area { flex-grow: 1; font-size: 1.1rem; line-height: 1.6;}
+        #question-area h3 { margin-top: 0; font-size: 1.4rem; color: var(--primary-glow); margin-bottom: 20px;}
+        #question-area label { display: block; padding: 10px 15px; margin: 10px 0; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: background-color 0.2s ease; }
+        #question-area input[type="radio"] { margin-right: 10px; }
+        #question-area input[type="radio"]:checked + label { background-color: rgba(0, 246, 255, 0.1); border-color: var(--primary-glow);}
+         #question-area label:hover { background-color: rgba(0, 246, 255, 0.05); }
+
+
+        .navigation-buttons { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color); align-self: flex-end; }
         .btn { padding: 12px 30px; background: transparent; color: var(--primary-glow); border: 1px solid var(--primary-glow); border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all 0.3s ease; }
-        .btn:hover { background: var(--primary-glow); color: var(--background-color); box-shadow: 0 0 20px var(--primary-glow); }
-        .btn:disabled { cursor: not-allowed; opacity: 0.5; }
+        .btn:hover:not(:disabled) { background: var(--primary-glow); color: var(--background-color); box-shadow: 0 0 20px var(--primary-glow); }
+        .btn:disabled { cursor: not-allowed; opacity: 0.5; border-color: var(--secondary-text); color: var(--secondary-text); }
+        
         .sidebar-panel { width: 250px; flex-shrink: 0; display: flex; flex-direction: column; gap: 20px; }
-        .proctoring-panel { border: 1px solid var(--border-color); border-radius: 10px; padding: 15px; text-align: center; }
-        .proctoring-panel h3 { font-family: 'Orbitron', sans-serif; margin: 0 0 15px 0; font-size: 1rem; color: var(--secondary-text); }
-        #webcam-container { position: relative; width: 220px; height: 165px; margin: auto; overflow: hidden; border-radius: 8px; background-color: #000; }
-        #webcam { width: 100%; height: 100%; object-fit: cover; }
-        #proctor-message { font-weight: 600; margin-top: 15px; color: #28a745; }
+        .proctoring-panel { border: 1px solid var(--border-color); border-radius: 10px; padding: 15px; text-align: center; background: rgba(0,0,0,0.2); }
+        .proctoring-panel h3 { font-family: 'Orbitron', sans-serif; margin: 0 0 15px 0; font-size: 1rem; color: var(--secondary-text); text-transform: uppercase; letter-spacing: 1px; }
+        #webcam-container { position: relative; width: 100%; max-width: 220px; aspect-ratio: 4 / 3; margin: auto; overflow: hidden; border-radius: 8px; background-color: #000; border: 1px solid var(--border-color); }
+        #webcam { width: 100%; height: 100%; object-fit: cover; display: block; }
+        #proctor-message { font-weight: 600; margin-top: 15px; font-size: 0.9rem; }
+        .ok { color: var(--active-glow, #28a745); }
+        .alert { color: var(--error-glow, #dc3545); }
+        
         @keyframes fadeInZoom { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body>
-    <canvas id="hud-canvas"></canvas>
+    <canvas id="hud-canvas"></canvas> <!-- Optional background animation -->
+
     <div id="exam-container">
-       <div id="warning-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 1000; color: white; justify-content: center; align-items: center; text-align: center; font-size: 1.5rem; backdrop-filter: blur(5px);">
-    <p id="warning-message"></p>
-</div>
+       <div id="warning-overlay">
+           <p id="warning-message"></p>
+       </div>
+
+        <!-- Status Overlay for Loading/Errors -->
+       <div id="status-overlay" class="status-overlay">
+           <h3 id="status-title">Initializing Exam...</h3>
+           <p id="status-message">Please wait while we fetch the exam data.</p>
+           <!-- Error details will be shown here -->
+           <div id="error-details" style="color: var(--error-glow); font-size: 0.9em; margin-top: 15px;"></div> 
+       </div>
+
         <div class="exam-header">
-            <h2>{{ subject_name }}</h2>
+            <!-- Ensure subject_name is passed -->
+            <h2>{{ subject_name or 'Exam' }}</h2> 
             <div id="timer-container">
-                <div id="timer-progress"></div>
-                <span id="timer-text">30:00</span>
+                <span id="timer-text">--:--</span>
             </div>
         </div>
         <div class="exam-body">
-             <div id="calibration-overlay">
-                <h3 id="calibration-title">Initializing Exam...</h3>
-                <p id="calibration-status">Please wait.</p>
-            </div>
             <div class="main-panel">
-                <div id="question-area"></div>
+                <div id="question-area">
+                    <!-- Questions will be loaded here by JavaScript -->
+                </div>
                 <div class="navigation-buttons">
-                    <button id="next-btn" class="btn">Next Question</button>
+                    <button id="next-btn" class="btn" disabled>Next Question</button>
                 </div>
             </div>
             <aside class="sidebar-panel">
                 <div class="proctoring-panel">
-                    <h3>BIOMETRIC SCAN</h3>
+                    <h3>Biometric Scan</h3>
                     <div id="webcam-container">
                         <video id="webcam" autoplay muted playsinline></video>
                     </div>
                 </div>
                 <div class="proctoring-panel">
-                    <h3>SYSTEM STATUS</h3>
+                    <h3>System Status</h3>
                     <p id="proctor-message" class="ok">PROCTORING ACTIVE</p>
                 </div>
             </aside>
@@ -125,139 +170,306 @@
 
     <script>
     // --- CONFIG & STATE ---
-    const EXAM_DURATION = 30 * 60; // 30 minutes in seconds
-    const SUBJECT = "{{ subject }}";
-    const STUDENT_ROLL_NO = "{{ roll_no }}";
+    const EXAM_DURATION_MINUTES = 30; // Exam duration in minutes
+    const EXAM_DURATION_SECONDS = EXAM_DURATION_MINUTES * 60;
+    // ** IMPORTANT: Use the subject_code passed from Flask **
+    const SUBJECT_CODE = "{{ subject }}"; 
+    const STUDENT_ROLL_NO = "{{ roll_no }}"; 
     let questions = [], currentQuestionIndex = 0, userAnswers = {}, examTimer;
     let examTerminated = false;
+    let streamInstance = null; // To hold the webcam stream
 
     // --- DOM ELEMENTS ---
     const videoEl = document.getElementById('webcam');
     const nextBtn = document.getElementById('next-btn');
-    const calibrationOverlay = document.getElementById('calibration-overlay');
-    const calibrationTitle = document.getElementById('calibration-title');
-    const calibrationStatus = document.getElementById('calibration-status');
+    const statusOverlay = document.getElementById('status-overlay');
+    const statusTitle = document.getElementById('status-title');
+    const statusMessage = document.getElementById('status-message');
+    const errorDetails = document.getElementById('error-details');
+    const timerText = document.getElementById('timer-text');
+    const questionArea = document.getElementById('question-area');
+    const warningOverlay = document.getElementById('warning-overlay');
+    const warningMessageEl = document.getElementById('warning-message');
 
     const socket = io();
 
     // --- SOCKET.IO CONNECTION ---
     socket.on('connect', () => {
-        console.log("Socket connected. Joining student room...");
-        // Announce that this student has started an exam
-        socket.emit('student_join', { 
-            roll_no: STUDENT_ROLL_NO,
-            // Include other info if your server needs it, like name or subject
-        });
+        console.log("Socket connected.");
+        // Announce student presence only after webcam is confirmed
     });
+    socket.on('disconnect', () => console.log("Socket disconnected."));
+    socket.on('error', (error) => console.error("Socket Error:", error));
+
 
     // --- CORE EXAM LOGIC ---
     async function startExam() {
+        console.log("Starting exam initialization...");
+        errorDetails.textContent = ''; // Clear previous errors
+        statusOverlay.classList.remove('error'); // Reset error state
+        statusTitle.textContent = "Fetching Exam Data...";
+        statusMessage.textContent = "Please wait.";
+        
         try {
-            const response = await fetch(`/api/questions/${SUBJECT}`);
-            if (!response.ok) throw new Error('Could not fetch questions.');
+            // 1. Fetch Questions using the correct subject code
+            console.log(`Fetching questions for subject code: ${SUBJECT_CODE}`);
+            const response = await fetch(`/api/questions/${SUBJECT_CODE}`);
+            console.log("Fetch response received:", response.status);
+
+            if (!response.ok) {
+                 let errorMsg = `HTTP error ${response.status}: ${response.statusText}`;
+                 try { // Try to get more details from the response body
+                     const errData = await response.json();
+                     errorMsg += ` - ${errData.error || 'Server error details unavailable.'}`;
+                 } catch(e) { /* Ignore if response body is not JSON */ }
+                 throw new Error(`Failed to fetch questions. ${errorMsg}`);
+            }
+
             questions = await response.json();
-            
-            await startWebcamAndCalibrate();
-            
-            startTimer(EXAM_DURATION);
+            console.log(`Received ${questions.length} questions.`);
+             if (questions.length === 0) {
+                 throw new Error("No questions found for this subject. Please contact the administrator.");
+             }
+
+            // 2. Start Webcam and Calibration (includes audio)
+             statusTitle.textContent = "Initializing Camera & Mic...";
+             await startWebcamAndCalibrate(); // Handles camera/mic access
+
+            // 3. Join Socket Room (only after camera access granted)
+            console.log("Joining student room...");
+            socket.emit('student_join', { roll_no: STUDENT_ROLL_NO });
+
+
+            // 4. Start Timer, Security Listeners, Display First Question
+            startTimer(EXAM_DURATION_SECONDS);
             listenForSecurityEvents();
             displayQuestion();
+            nextBtn.disabled = false; // Enable button only after everything loads
+
+            // 5. Hide Overlay
+            console.log("Exam setup complete. Hiding overlay.");
+            statusOverlay.style.opacity = '0';
+            setTimeout(() => statusOverlay.style.display = 'none', 500); // Hide after fade
 
         } catch (error) {
-            calibrationTitle.textContent = "Exam Start Failed";
-            calibrationStatus.innerHTML = `${error.message}<br/><br/><a href="/dashboard" class="btn">Return to Dashboard</a>`;
+            console.error("Exam Start Failed:", error);
+            statusOverlay.classList.add('error'); // Add error class for styling
+            statusTitle.textContent = "Exam Start Failed";
+            statusMessage.innerHTML = `An error occurred. Please try refreshing the page or contact support if the problem persists. <br><br><a href="/student_dashboard" class="btn">Return to Dashboard</a>`;
+             // Display specific error details
+            errorDetails.textContent = `Details: ${error.message || 'Unknown error'}`; 
+            // Ensure overlay stays visible on error
+            statusOverlay.style.opacity = '1'; 
+            statusOverlay.style.display = 'flex';
+            // Stop webcam if it started before the error
+            stopWebcam(); 
+        }
+    }
+// --- [ PASTE THIS NEW ASYNC FUNCTION INTO EXAM.HTML ] ---
+    // (This replaces your old VAD-based startAudioAnalysis function)
+
+    async function startAudioAnalysis(stream) {
+        try {
+            // We still need the cooldown flag to prevent spamming
+            let isSpeakingCooldown = false;
+
+            // Set ONNX runtime wasm path (required by the VAD library)
+            ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/";
+
+            console.log("Loading VAD model...");
+            statusTitle.textContent = 'Initializing Audio AI...'; // Update status
+
+            // 1. Create the VAD model
+            const myVAD = await vad.MicVAD.new({
+                // Model path (from CDN)
+                modelURL: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.12/dist/silero_vad.onnx",
+
+                // --- KEY PARAMETERS TO TUNE ---
+                
+                /**
+                 * (Default: 0.5)
+                 * Speech threshold. Lower values mean more sensitive (detects whispers).
+                 * Higher values mean less sensitive (ignores quiet background noise).
+                 * TRY TUNING THIS FIRST: 0.4, 0.6
+                 */
+                threshold: 0.5, 
+                
+                /**
+                 * (Default: 1000ms)
+                 * Milliseconds of silence to wait before triggering 'onSpeechEnd'.
+                 */
+                speechEndDelay: 1000, 
+                
+                /**
+                 * (Default: 150ms)
+                 * Milliseconds of speech to wait before triggering 'onSpeechStart'.
+                 * Increase this if it's triggering on short coughs (e.g., 300).
+                 */
+                minSpeechFrames: 150, 
+                
+                // --- END OF TUNEABLE PARAMETERS ---
+
+
+                // 2. Define the callback for when speech is detected
+                onSpeechStart: () => {
+                    console.log("VAD: Speech detected!");
+                    
+                    if (examTerminated || !streamInstance) return; // Stop if exam ended
+
+                    // If not on cooldown, send an alert and start the cooldown
+                    if (!isSpeakingCooldown) {
+                        isSpeakingCooldown = true; // Start cooldown
+                        
+                        console.log("Sending audio alert to server.");
+                        socket.emit('audio_alert', { 'roll_no': STUDENT_ROLL_NO });
+
+                        // 5-second cooldown to prevent spamming
+                        setTimeout(() => { isSpeakingCooldown = false; }, 5000); 
+                    }
+                },
+
+                // 3. Define the callback for when speech ends
+                onSpeechEnd: () => {
+                    console.log("VAD: Speech ended.");
+                    // No action needed on speech end
+                }
+            });
+
+            // 4. Start the VAD model using the student's microphone stream
+            myVAD.start(stream);
+
+            console.log("Advanced audio analysis (VAD) started.");
+            statusTitle.textContent = 'Initializing Proctor Stream...'; // Reset status
+
+        } catch (error) {
+             console.error("Failed to start VAD audio analysis:", error);
+             // This is a critical failure, we should inform the user
+             statusTitle.textContent = 'Audio AI Failed to Load';
+             statusMessage.textContent = `Audio proctoring could not start: ${error.message}. Please refresh and try again.`;
+             // Stop the exam from proceeding if audio is mandatory
+             // For now, we'll just log it and let the exam continue without audio proctoring
+        }
+    }
+    function displayQuestion() {
+        if (examTerminated || currentQuestionIndex >= questions.length) return;
+        
+        const q = questions[currentQuestionIndex];
+        let optionsHtml = q.options.map((opt, index) => {
+            // Check if there's a saved answer for this question
+            const isChecked = userAnswers[q.id] === opt ? 'checked' : '';
+            return `
+            <div>
+                <input type="radio" name="option" value="${opt}" id="opt${index}" ${isChecked}>
+                <label for="opt${index}">${opt}</label>
+            </div>
+        `}).join('');
+
+        questionArea.innerHTML = `
+            <h3>Q${currentQuestionIndex + 1}: ${q.question}</h3>
+            <form id="question-form">${optionsHtml}</form>
+        `;
+        
+        // Update button text
+        if (currentQuestionIndex === questions.length - 1) {
+            nextBtn.textContent = 'Submit Exam';
+        } else {
+            nextBtn.textContent = 'Next Question';
+        }
+
+        // Add event listener for saving answer immediately on selection
+        const form = document.getElementById('question-form');
+        if(form) {
+            form.addEventListener('change', saveAnswer);
         }
     }
 
-    // In exam.html
-
-function displayQuestion() {
-    if (currentQuestionIndex >= questions.length) return;
-    
-    const q = questions[currentQuestionIndex];
-    const questionArea = document.getElementById('question-area');
-    
-    // This creates the radio buttons for the options
-    let optionsHtml = q.options.map((opt, index) => `
-        <div style="margin: 10px 0; font-size: 1.1rem;">
-            <input type="radio" name="option" value="${opt}" id="opt${index}" style="margin-right: 10px;">
-            <label for="opt${index}">${opt}</label>
-        </div>
-    `).join('');
-
-    // This correctly displays the question text
-    questionArea.innerHTML = `
-        <h3 style="font-size: 1.4rem;">Q${currentQuestionIndex + 1}: ${q.question}</h3>
-        <form>${optionsHtml}</form>
-    `;
-
-    if (currentQuestionIndex === questions.length - 1) {
-        nextBtn.textContent = 'Submit Exam';
-    }
-}
-
     function saveAnswer() {
+        // Find the currently selected radio button
         const selectedOption = document.querySelector('input[name="option"]:checked');
-        if (selectedOption) {
+        if (selectedOption && questions[currentQuestionIndex]) {
             userAnswers[questions[currentQuestionIndex].id] = selectedOption.value;
+            console.log("Saved answer:", userAnswers); // For debugging
         }
     }
 
     nextBtn.addEventListener('click', () => {
-        saveAnswer();
+        // Ensure latest answer is saved before proceeding (though change listener should cover this)
+        saveAnswer(); 
+
+        if (examTerminated) return;
+
         if (nextBtn.textContent === 'Submit Exam') {
+            // Optional: Final confirmation
+            // if (!confirm("Are you sure you want to submit the exam?")) { return; } 
             submitExam("You have completed the exam.");
         } else {
             currentQuestionIndex++;
-            displayQuestion();
+            if (currentQuestionIndex < questions.length) {
+                displayQuestion();
+            } else {
+                // Should not happen if button text is correct, but as a fallback:
+                submitExam("Reached end of questions.");
+            }
         }
     });
     
     async function submitExam(reason) {
         if (examTerminated) return;
-        examTerminated = true;
+        examTerminated = true; // Set flag immediately
+        console.log(`Submitting exam. Reason: ${reason}`);
         
+        // Stop timer
         clearInterval(examTimer);
-        if (videoEl.srcObject) {
-            videoEl.srcObject.getTracks().forEach(track => track.stop());
-        }
+        timerText.textContent = "Finished";
+
+        // Stop webcam and audio analysis
+        stopWebcam();
         
         // Stop listening for cheating attempts
         window.removeEventListener("blur", handleBlur);
         document.removeEventListener("visibilitychange", handleVisibilityChange);
         document.removeEventListener('keyup', handleKeyUp);
         
+        // Notify server that student is leaving
         socket.emit('student_leave', { roll_no: STUDENT_ROLL_NO });
+        
+        // Update UI
         nextBtn.textContent = 'Submitting...';
         nextBtn.disabled = true;
+        questionArea.innerHTML = `<p style="text-align: center; font-size: 1.2em;">Submitting your answers...</p>`;
 
         try {
+            console.log("Sending submission data:", { subject: SUBJECT_CODE, answers: userAnswers, reason: reason });
             const response = await fetch('/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ subject: SUBJECT, answers: userAnswers, reason: reason })
+                body: JSON.stringify({ subject: SUBJECT_CODE, answers: userAnswers, reason: reason })
             });
-            const data = await response.json();
-            if (data.redirect_url) {
-                window.location.href = data.redirect_url;
+             const data = await response.json();
+             console.log("Submission response:", data);
+            if (response.ok && data.redirect_url) {
+                window.location.href = data.redirect_url; // Redirect on success
+            } else {
+                 throw new Error(data.error || `Server responded with status ${response.status}`);
             }
         } catch (error) {
             console.error("Submission failed:", error);
-            alert("Could not submit exam. Please check your connection.");
+            // Display error to user without redirecting immediately
+             questionArea.innerHTML = `<p style="text-align: center; color: var(--error-glow);">
+                Submission Failed: ${error.message}. <br>Please check your connection or contact support. 
+                Your answers up to this point might be saved, but submission failed.
+             </p>`;
+             // Maybe provide a manual retry button or instructions
         }
     }
 
     function startTimer(duration) {
         let timeLeft = duration;
-        const timerProgress = document.getElementById('timer-progress');
-        const timerText = document.getElementById('timer-text');
+        updateTimerDisplay(timeLeft); // Initial display
 
         examTimer = setInterval(() => {
             timeLeft--;
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            timerText.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            timerProgress.style.width = `${(timeLeft / duration) * 100}%`;
+            updateTimerDisplay(timeLeft);
 
             if (timeLeft <= 0) {
                 clearInterval(examTimer);
@@ -265,145 +477,205 @@ function displayQuestion() {
             }
         }, 1000);
     }
+
+    function updateTimerDisplay(secondsLeft) {
+         const minutes = Math.floor(secondsLeft / 60);
+         const seconds = secondsLeft % 60;
+         timerText.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+         // Update progress bar width if you re-add it
+         // timerProgress.style.width = `${(secondsLeft / EXAM_DURATION_SECONDS) * 100}%`; 
+    }
     
     // --- SECURITY & PROCTORING ---
-    const handleVisibilityChange = () => { if (document.hidden) submitExam("Changed tabs"); };
+    const handleVisibilityChange = () => { if (document.hidden) submitExam("Changed tabs or minimized window"); };
     const handleBlur = () => { submitExam("Window lost focus"); };
-    const handleKeyUp = (e) => { if (e.key === 'PrintScreen') submitExam("Screenshot attempt"); };
+    const handleKeyUp = (e) => { 
+        // More robust check for PrintScreen variations if needed
+        if (e.key === 'PrintScreen' || (e.code === 'PrintScreen') || (e.key === 'Snapshot') ) {
+            submitExam("Screenshot attempt detected"); 
+        }
+    };
 
     function listenForSecurityEvents() {
         window.addEventListener('blur', handleBlur);
         document.addEventListener("visibilitychange", handleVisibilityChange);
         document.addEventListener('keyup', handleKeyUp);
+        console.log("Security event listeners attached.");
+    }
+    
+    function stopWebcam() {
+         if (streamInstance) {
+            streamInstance.getTracks().forEach(track => track.stop());
+            console.log("Webcam and mic stopped.");
+            streamInstance = null; // Clear the instance
+         }
+         videoEl.srcObject = null; // Clear video element source
     }
 
     async function startWebcamAndCalibrate() {
         try {
-            calibrationTitle.textContent = 'Requesting Camera Access...';
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            videoEl.srcObject = stream;
+            console.log("Requesting camera and microphone access...");
+            streamInstance = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            videoEl.srcObject = streamInstance;
+            await videoEl.play(); // Ensure video starts playing
+            console.log("Camera and mic access granted.");
             
-            calibrationTitle.textContent = 'Initializing Proctor Stream...';
+            statusTitle.textContent = 'Initializing Proctor Stream...';
             
-            // This now starts the Base64 frame emitter instead of WebRTC
-            startFrameEmitter(videoEl, stream);
-            
-            calibrationOverlay.style.opacity = '0';
-            setTimeout(() => calibrationOverlay.style.display = 'none', 500);
+            startFrameEmitter(videoEl); // Start sending video frames
+            await startAudioAnalysis(streamInstance); // Start analyzing audio
+
+            // No need to hide overlay here, startExam does it after successful setup
 
         } catch (err) {
-            console.error("Camera Error:", err);
-            throw new Error("Webcam access is required for this exam and was denied.");
+            console.error("Camera/Mic Error:", err);
+            stopWebcam(); // Clean up if error occurs
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                 throw new Error("Webcam and Microphone access is required for this exam and was denied. Please grant permission and refresh.");
+            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                 throw new Error("No Webcam or Microphone found. Please ensure they are connected and enabled.");
+            } else {
+                 throw new Error(`Could not access Webcam/Microphone: ${err.message}`);
+            }
         }
-    }// In your exam.html <script>
-
-async function startProctoring() {
-    try {
-        // Change audio to 'true' to request microphone access
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); 
-        videoEl.srcObject = stream;
-        
-        startFrameEmitter(videoEl);
-        startAudioAnalysis(stream); // <-- ADD THIS NEW LINE
-        listenForSecurityEvents();
-
-    } catch (err) {
-        throw new Error("Webcam and Microphone access are required for this exam.");
     }
-}
-// In your exam.html <script>
 
-function startAudioAnalysis(stream) {
-    const audioContext = new AudioContext();
-    const analyser = audioContext.createAnalyser();
-    const microphone = audioContext.createMediaStreamSource(stream);
-    microphone.connect(analyser);
-    
-    analyser.fftSize = 512;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+    // --- [ PASTE THIS ENTIRE FUNCTION INTO EXAM.HTML ] ---
+    // (This replaces your old startAudioAnalysis and checkAudio functions)
 
-    const THRESHOLD = 30; // Adjust this value based on testing. Higher = less sensitive.
-    let isSpeaking = false;
-    
-    function checkAudio() {
-        if (examTerminated) return; // Stop checking if the exam is over
-
-        analyser.getByteFrequencyData(dataArray);
-        let sum = dataArray.reduce((a, b) => a + b, 0);
-        let average = sum / bufferLength;
-
-        if (average > THRESHOLD && !isSpeaking) {
-            isSpeaking = true; // Set flag to prevent sending too many alerts
-            console.log("Suspicious noise detected! Level:", average);
+    function startAudioAnalysis(stream) {
+        try {
+            const audioContext = new AudioContext();
+            const microphone = audioContext.createMediaStreamSource(stream);
             
-            // Send an alert to the server
-            socket.emit('audio_alert', { 'roll_no': STUDENT_ROLL_NO });
+            // --- VAD Setup ---
+            // We still need the cooldown flag to prevent spamming
+            let isSpeakingCooldown = false; 
 
-            // Reset the flag after a few seconds (cooldown period)
-            setTimeout(() => { isSpeaking = false; }, 3000); 
-        }
+            const vad = new VAD({
+                source: microphone, // Connect VAD to the mic stream
+                smoothingTimeConstant: 0.9, // (Default: 0.9) How smooth the voice detection is
+                minSpeechFrames: 5,         // (Default: 5) Number of consecutive speech frames to trigger
+                
+                // This function is called when speech starts
+                voice_start: () => {
+                    console.log("VAD: Speech detected!");
+                    
+                    if (examTerminated || !streamInstance) return; // Stop if exam ended
+
+                    // If not on cooldown, send an alert and start the cooldown
+                    if (!isSpeakingCooldown) {
+                        isSpeakingCooldown = true; // Start cooldown
+                        
+                        console.log("Sending audio alert to server.");
+                        socket.emit('audio_alert', { 'roll_no': STUDENT_ROLL_NO });
+
+                        setTimeout(() => { isSpeakingCooldown = false; }, 5000); // 5-second cooldown
+                    }
+                },
+                
+                // This function is called when speech stops
+                voice_stop: () => {
+                    console.log("VAD: Speech stopped.");
+                    // We don't need to do anything when they stop talking
+                }
+            });
+            // --- End VAD Setup ---
+
+            console.log("Advanced audio analysis (VAD) started.");
         
-        // Loop to keep checking the audio
-        requestAnimationFrame(checkAudio);
+        } catch (error) {
+             console.error("Failed to start VAD audio analysis:", error);
+             // Optionally inform the user
+             // statusMessage.textContent += " (Audio analysis failed to start)";
+        }
     }
-    
-    checkAudio();
-}
-    // --- ** NEW: Live Streaming Logic (Base64 Frames) ** ---
-    function startFrameEmitter(videoElement, stream) {
+
+    function startFrameEmitter(videoElement) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        const FPS = 2; // Stream at 2 frames per second. Increase for smoother video.
+        const FPS = 2; // Stream at 2 frames per second
+        let emitterInterval = null; // Hold interval ID
 
         videoElement.addEventListener('loadedmetadata', () => {
+             // Set canvas size once video metadata is loaded
             canvas.width = videoElement.videoWidth;
             canvas.height = videoElement.videoHeight;
+            console.log(`Frame emitter canvas size set: ${canvas.width}x${canvas.height}`);
         });
 
-        const frameEmitterInterval = setInterval(() => {
-            if (examTerminated) {
-                clearInterval(frameEmitterInterval);
+        // Function to clear interval if it exists
+        const stopEmitter = () => {
+            if (emitterInterval) {
+                clearInterval(emitterInterval);
+                emitterInterval = null;
+                console.log("Frame emitter stopped.");
+            }
+        };
+
+        // Start emitting frames
+        emitterInterval = setInterval(() => {
+            if (examTerminated || !streamInstance) { // Check streamInstance as well
+                stopEmitter();
                 return;
             }
             
-            if (videoElement.readyState >= 2) {
-                ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-                // Use JPEG with quality 0.5 for smaller data size
-                const frameData = canvas.toDataURL('image/jpeg', 0.5);
-                
-                // Use the correct event name your server is listening for
-                socket.emit('video_frame_from_student', {
-                    roll_no: STUDENT_ROLL_NO,
-                    frame: frameData
-                });
+            // Ensure video is ready and canvas has dimensions
+            if (videoElement.readyState >= 2 && canvas.width > 0 && canvas.height > 0) { 
+                try {
+                    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                    // Use JPEG with quality 0.5 for smaller data size
+                    const frameData = canvas.toDataURL('image/jpeg', 0.5); 
+                    
+                    socket.emit('video_frame_from_student', {
+                        roll_no: STUDENT_ROLL_NO,
+                        frame: frameData
+                    });
+                } catch(e) {
+                     console.error("Error capturing or sending video frame:", e);
+                     // Consider stopping emitter if errors persist
+                }
             }
         }, 1000 / FPS);
-    }// In exam.html, inside the <script> tag
+        console.log("Frame emitter started.");
 
-// ADD THIS LISTENER for warnings
-socket.on('receive_warning', (data) => {
-    const overlay = document.getElementById('warning-overlay');
-    const messageEl = document.getElementById('warning-message');
-    
-    messageEl.textContent = data.message;
-    overlay.style.display = 'flex';
-    
-    // Hide the warning after 5 seconds
-    setTimeout(() => {
-        overlay.style.display = 'none';
-    }, 5000);
-});
+        // Add listener to stop emitter if stream ends unexpectedly
+         if (streamInstance) {
+             streamInstance.addEventListener('inactive', stopEmitter);
+         }
+    }
 
-// ADD THIS LISTENER for termination
-socket.on('exam_terminated', (data) => {
-    // This calls the submitExam function you already have
-    submitExam(data.reason);
-});
+    // --- SOCKET EVENT LISTENERS ---
+    socket.on('receive_warning', (data) => {
+        console.log("Received warning:", data.message);
+        warningMessageEl.textContent = data.message;
+        warningOverlay.style.display = 'flex';
+        
+        // Hide warning after 5 seconds
+        setTimeout(() => { warningOverlay.style.display = 'none'; }, 5000);
+    });
+
+    socket.on('exam_terminated', (data) => {
+        console.log("Exam termination received from server:", data.reason);
+        // Ensure this only runs once
+        if (!examTerminated) { 
+             submitExam(data.reason || "Terminated by Administrator"); 
+        }
+    });
     
+    // --- START EXAM ON PAGE LOAD ---
     window.onload = startExam;
-</script>
 
+    // --- Optional: Add beforeunload confirmation ---
+    window.addEventListener('beforeunload', function (e) {
+        if (!examTerminated) { // Only show confirm if exam is active
+            e.preventDefault(); // Standard practice
+            e.returnValue = 'Are you sure you want to leave? Your exam progress might be lost.'; // Message for older browsers
+            return 'Are you sure you want to leave? Your exam progress might be lost.'; // Message for modern browsers
+        }
+        // If exam is terminated/submitted, allow navigation freely
+    });
+
+    </script>
 </body>
 </html>
-

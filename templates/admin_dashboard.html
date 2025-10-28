@@ -5,347 +5,619 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Command Center</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
     <style>
+        /* --- Root Variables & Theme (Electric Blue / Magenta) --- */
         :root {
-            --primary-glow: #00f6ff;
-            --active-glow: #00ff8c;
-            --inactive-glow: #ff4d4d;
-            --background-color: #010409;
-            --card-bg: rgba(10, 25, 47, 0.7);
-            --border-color: rgba(0, 246, 255, 0.2);
-            --text-color: #e6edf3;
-            --secondary-text: rgba(230, 237, 243, 0.7);
+            --primary-glow: #00BFFF; /* Electric Blue */
+            --secondary-glow: #FF00FF; /* Magenta */
+            --error-glow: #FF4D4D; /* Red for alerts */
+            --warning-glow: #FFD700; /* Yellow for warnings */
+            --background-dark: #03011a; /* Very Dark Blue-Purple */
+            --card-bg: rgba(10, 5, 35, 0.6); /* Darker, slightly transparent */
+            --sidebar-bg: rgba(5, 2, 25, 0.7);
+            --border-color: rgba(0, 191, 255, 0.2); /* Blue border */
+            --border-color-active: rgba(0, 191, 255, 0.6);
+            --text-color: #e0f0ff; /* Lighter Blueish text */
+            --secondary-text: rgba(224, 240, 255, 0.7);
+            --font-display: 'Orbitron', sans-serif;
+            --font-body: 'Poppins', sans-serif;
+            --font-mono: 'Share Tech Mono', monospace;
         }
-        body {
-            font-family: 'Poppins', sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
+
+        /* --- Global & Body Setup --- */
+        body, html {
+            height: 100%;
             margin: 0;
-            height: 100vh;
-            display: flex;
+            font-family: var(--font-body);
+            color: var(--text-color);
             overflow: hidden;
+            background-color: var(--background-dark);
+            perspective: 1500px; /* Enable 3D */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
-        #matrix-canvas {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.3;
+
+        /* --- Animated Background Canvas --- */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.7;
         }
+
+        /* --- Subtle HUD Elements --- */
+        .hud-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 5;
+        }
+        /* Corner Brackets */
+        .hud-corner {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 2px solid var(--border-color);
+            opacity: 0.6;
+            animation: pulseGlow 4s infinite alternate ease-in-out;
+        }
+        .hud-corner.top-left { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+        .hud-corner.top-right { top: 20px; right: 20px; border-left: none; border-bottom: none; }
+        .hud-corner.bottom-left { bottom: 20px; left: 20px; border-right: none; border-top: none; }
+        .hud-corner.bottom-right { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+        
+        @keyframes pulseGlow {
+            from { box-shadow: 0 0 5px var(--border-color); opacity: 0.4; }
+            to { box-shadow: 0 0 15px var(--border-color); opacity: 0.7; }
+        }
+
+        /* --- Main Layout --- */
+        .container {
+            display: flex;
+            height: 100%;
+        }
+
+        /* --- Sidebar Styling --- */
         .sidebar {
-            width: 320px;
+            width: 280px;
             flex-shrink: 0;
-            background: rgba(5, 15, 30, 0.6);
-            backdrop-filter: blur(15px);
+            background: var(--sidebar-bg);
+            backdrop-filter: blur(20px) saturate(180%);
             border-right: 1px solid var(--border-color);
             padding: 30px;
             display: flex;
             flex-direction: column;
             z-index: 2;
-            overflow-y: auto;
+            transform-style: preserve-3d; /* For 3D Parallax */
+            transition: transform 0.1s linear;
+            box-shadow: 5px 0 30px rgba(0,0,0,0.3);
         }
-        .sidebar-header h2 { font-family: 'Orbitron', sans-serif; margin: 0 0 40px 0; font-size: 1.8rem; color: var(--primary-glow); text-shadow: 0 0 10px var(--primary-glow); text-align: center;}
-        
-        .control-panel h3 {
-            font-family: 'Orbitron', sans-serif; font-size: 1.2rem; margin: 0 0 20px 0;
-            color: var(--primary-glow); text-shadow: 0 0 10px var(--primary-glow);
-            border-bottom: 1px solid var(--border-color); padding-bottom: 15px;
-        }
-        .status-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .status-item span { font-weight: 600; font-size: 0.9rem; }
-        .status-pill { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; }
-        .status-active { background-color: rgba(0, 255, 140, 0.1); color: var(--active-glow); border: 1px solid rgba(0, 255, 140, 0.2); }
-        .status-inactive { background-color: rgba(255, 77, 77, 0.1); color: var(--inactive-glow); border: 1px solid rgba(255, 77, 77, 0.2); }
-        .toggle-btn { background: none; border: none; cursor: pointer; padding: 5px; }
-        .toggle-btn svg { transition: color 0.3s ease; }
-        .toggle-btn:hover svg { color: #fff !important; }
 
+        .sidebar-header h2 {
+            font-family: var(--font-display);
+            margin: 0 0 40px 0;
+            font-size: 1.8rem;
+            color: var(--primary-glow);
+            text-shadow: 0 0 10px var(--primary-glow);
+            text-align: center;
+            letter-spacing: 1px;
+        }
+        
+        .nav-menu {
+            flex-grow: 1;
+        }
+
+        .nav-menu a {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            color: var(--secondary-text);
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+            position: relative; /* For active indicator */
+            font-weight: 400; /* Lighter weight */
+        }
+        .nav-menu a svg {
+            margin-right: 15px;
+            width: 22px; /* Slightly smaller icons */
+            height: 22px;
+            stroke-width: 1.5;
+            opacity: 0.7;
+            transition: all 0.3s ease;
+        }
+
+        .nav-menu a:hover {
+            background-color: rgba(0, 191, 255, 0.1);
+            color: #fff;
+        }
+        .nav-menu a:hover svg {
+            opacity: 1;
+            filter: drop-shadow(0 0 5px var(--primary-glow));
+        }
+
+        .nav-menu a.active {
+            background-color: rgba(0, 191, 255, 0.15);
+            color: #fff;
+            box-shadow: inset 3px 0 0 var(--primary-glow); /* Active indicator line */
+            font-weight: 600;
+        }
+        .nav-menu a.active svg {
+            opacity: 1;
+            color: var(--primary-glow);
+            filter: drop-shadow(0 0 8px var(--primary-glow));
+        }
+
+        /* --- Main Content Area --- */
         .main-content {
             flex-grow: 1;
             padding: 40px 50px;
             overflow-y: auto;
+            position: relative;
         }
-        .main-content::-webkit-scrollbar { width: 6px; }
-        .main-content::-webkit-scrollbar-thumb { background-color: var(--primary-glow); border-radius: 3px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
-        .header h1 { font-family: 'Orbitron', sans-serif; margin: 0; font-size: 2.8rem; color: #fff; }
-        .header .logout-btn { color: var(--primary-glow); text-decoration: none; font-weight: 600; border: 1px solid var(--border-color); padding: 8px 15px; border-radius: 8px; transition: all 0.3s ease; }
-        .header .logout-btn:hover { background-color: rgba(0, 246, 255, 0.1); box-shadow: 0 0 15px var(--primary-glow); }
-
-        .proctoring-grid {
-    display: grid;
-    /* You can change 250px to any size you like */
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 20px;
-}
         
-        .student-feed {
-            background: var(--card-bg); backdrop-filter: blur(10px);
-            border: 1px solid var(--border-color); border-radius: 12px;
-            padding: 15px;
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 50px;
         }
-        /* Updated to style the new img tag */
-        .student-feed img { 
-            width: 100%; 
-            border-radius: 8px; 
-            background-color: #000; 
+        .header h1 {
+            font-family: var(--font-display);
+            margin: 0;
+            font-size: 3rem; /* Larger Title */
+            color: #fff;
+            letter-spacing: 1px;
+            text-shadow: 0 0 15px rgba(0, 191, 255, 0.4);
         }
-        .student-feed h3 { margin: 10px 0 5px 0; font-family: 'Orbitron', sans-serif; }
-        .student-feed p { margin: 0; color: var(--secondary-text); font-size: 0.9rem; }
-        .no-students-message {
-            grid-column: 1 / -1; text-align: center; font-size: 1.2rem;
-            color: var(--secondary-text); padding: 50px;
+        
+        .logout-btn {
+            padding: 10px 25px;
+            background: transparent;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--secondary-text);
+            font-family: var(--font-display);
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        .logout-btn:hover {
+            background: var(--primary-glow);
+            border-color: var(--primary-glow);
+            color: var(--background-dark);
+            box-shadow: 0 0 20px var(--primary-glow);
+            transform: translateY(-2px);
         }
 
-        .subjects-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px;
+        /* --- Proctoring Card --- */
+        .proctoring-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(15px) saturate(160%);
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            transform-style: preserve-3d;
+            transition: transform 0.1s linear, box-shadow 0.3s ease;
+            min-height: 50vh; /* Ensure it takes up significant space */
+            display: flex;
+            flex-direction: column;
         }
-        .subject-card {
-            background: var(--card-bg); backdrop-filter: blur(10px); border: 1px solid var(--border-color);
-            border-radius: 12px; padding: 30px; text-decoration: none; color: var(--text-color);
-            transition: transform 0.3s ease, box-shadow 0.3s ease; text-align: center;
+
+        .proctoring-card h2 {
+            font-family: var(--font-display);
+            font-weight: 600;
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            margin: 0 0 30px 0;
+            font-size: 1.5rem;
+            letter-spacing: 0.5px;
         }
-        .subject-card:hover { transform: translateY(-10px); box-shadow: 0 15px 30px rgba(0, 246, 255, 0.1); }
-        .card-icon { width: 60px; height: 60px; margin: 0 auto 20px auto; color: var(--primary-glow); }
-        .subject-card h3 { font-family: 'Orbitron', sans-serif; margin: 0 0 25px 0; font-size: 1.3rem; }
-        .card-actions { display: flex; gap: 10px; justify-content: center; }
-        .card-actions .btn {
-             flex-grow: 1; padding: 10px 15px; background: rgba(0, 246, 255, 0.1);
-             color: var(--text-color); border: 1px solid var(--border-color);
-             border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600;
-             transition: all 0.3s ease; text-decoration: none;
+
+        /* --- Grid for Student Feeds/Placeholders --- */
+        #live-proctoring-grid {
+            flex-grow: 1;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); /* Responsive grid, slightly wider */
+            gap: 25px;
+            align-content: flex-start; /* Prevent stretching if few items */
         }
-        .card-actions .btn:hover { background: var(--primary-glow); color: var(--background-color); }
-        .card-actions .btn.results { background: rgba(255, 193, 7, 0.1); border-color: rgba(255, 193, 7, 0.3); }
-        .card-actions .btn.results:hover { background: #ffc107; color: var(--background-color); }
+
+        /* Styling for the central "Scanning" message when no students */
+        #no-students-message {
+            grid-column: 1 / -1; /* Span full width */
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--secondary-text);
+            padding: 50px 0;
+            font-family: var(--font-mono);
+            letter-spacing: 1px;
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            min-height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulsePlaceholder 3s infinite ease-in-out;
+        }
+        
+        @keyframes pulsePlaceholder {
+            0%, 100% { border-color: var(--border-color); box-shadow: 0 0 10px rgba(0, 191, 255, 0.2); }
+            50% { border-color: var(--primary-glow); box-shadow: 0 0 20px rgba(0, 191, 255, 0.5); }
+        }
+
+
+        /* --- Actual Student Feed (Replace Placeholder) --- */
+        .student-feed {
+            background: #000; /* Black background for video */
+            border: 2px solid var(--border-color-active);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 0 15px rgba(0, 191, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .student-feed img { /* Use img for base64 */
+            display: block;
+            width: 100%;
+            height: auto; 
+            aspect-ratio: 4 / 3; /* Force aspect ratio */
+            object-fit: cover;
+            background-color: #111;
+        }
+        
+        .student-info {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 12px;
+            font-family: var(--font-mono);
+            border-top: 1px solid var(--border-color);
+        }
+        .student-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+        .student-info-header .status.ok { color: var(--success-glow, #00FF7F); }
+        .student-info-header .status.alert { color: var(--error-glow); animation: blink 1s infinite; }
+        
+        @keyframes blink { 50% { opacity: 0.3; } }
+
+        .student-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .student-actions button {
+            flex-grow: 1;
+            padding: 6px 10px;
+            border: 1px solid;
+            border-radius: 4px;
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+        .btn-warn {
+            border-color: var(--warning-glow);
+            color: var(--warning-glow);
+        }
+        .btn-warn:hover {
+            background: var(--warning-glow);
+            color: var(--background-dark);
+            box-shadow: 0 0 10px var(--warning-glow);
+        }
+        .btn-terminate {
+            border-color: var(--error-glow);
+            color: var(--error-glow);
+        }
+        .btn-terminate:hover {
+            background: var(--error-glow);
+            color: var(--background-dark);
+            box-shadow: 0 0 10px var(--error-glow);
+        }
+        
+        .student-alert { /* Class added by JS on alert */
+            border-color: var(--error-glow);
+            box-shadow: 0 0 25px var(--error-glow);
+            animation: alertPulse 1s infinite alternate;
+        }
+        @keyframes alertPulse {
+             from { border-color: var(--error-glow); box-shadow: 0 0 15px var(--error-glow); }
+             to { border-color: #FF4D4D; box-shadow: 0 0 30px #FF4D4D; }
+        }
+
     </style>
 </head>
 <body>
-    <canvas id="matrix-canvas"></canvas>
 
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            <h2>Admin Console</h2>
-        </div>
-        <div class="control-panel">
-            <h3>Exam Control Center</h3>
-            {% for code, status in exam_status.items() %}
-            <div class="status-item">
-                <span>{{ code.upper() }}</span>
-                <span class="status-pill status-{{ status }}">{{ status }}</span>
-                <form action="/admin/toggle_exam/{{ code }}" method="POST" style="display: inline;">
-                    <button type="submit" class="toggle-btn" title="Toggle Status">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
-                             style="color: {% if status == 'active' %}var(--active-glow){% else %}var(--inactive-glow){% endif %};">
-                            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path>
-                            <path d="M12 8v8"></path>
-                        </svg>
-                    </button>
-                </form>
-            </div>
-            {% endfor %}
-        </div>
-    </aside>
-    
-    <main class="main-content">
-        <div class="header">
-            <h1>Command Center</h1>
-            <a href="{{ url_for('admin_logout') }}" class="logout-btn">Logout</a>
-        </div>
-        
-        <h2>Live Proctoring</h2>
-        <div id="proctoring-grid" class="proctoring-grid">
-             <p class="no-students-message">Waiting for students to start their exams...</p>
-        </div>
+    <canvas id="bg-canvas"></canvas>
+    <div class="hud-overlay">
+        <span class="hud-corner top-left"></span>
+        <span class="hud-corner top-right"></span>
+        <span class="hud-corner bottom-left"></span>
+        <span class="hud-corner bottom-right"></span>
+    </div>
 
-        <h2 style="margin-top: 40px;">Subject Management</h2>
-        <div class="subjects-grid">
-            <div class="subject-card">
-                <div class="card-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" /></svg></div>
-                <h3>Theoretical Computer Science</h3>
-                <div class="card-actions"><a href="{{ url_for('admin_questions', subject='tcs') }}" class="btn">Manage Qs</a><a href="{{ url_for('admin_results', subject='tcs') }}" class="btn results">Results</a></div>
+    <div class="container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>Admin Console</h2>
             </div>
-            <div class="subject-card">
-                <div class="card-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A11.953 11.953 0 0112 16.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0-3.866-2.134-7.16-5.157-8.843" /></svg></div>
-                <h3>Internet Programming</h3>
-                <div class="card-actions"><a href="{{ url_for('admin_questions', subject='ip') }}" class="btn">Manage Qs</a><a href="{{ url_for('admin_results', subject='ip') }}" class="btn results">Results</a></div>
-            </div>
-            <div class="subject-card">
-                <div class="card-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg></div>
-                <h3>Data Warehouse & Mining</h3>
-                <div class="card-actions"><a href="{{ url_for('admin_questions', subject='dwm') }}" class="btn">Manage Qs</a><a href="{{ url_for('admin_results', subject='dwm') }}" class="btn results">Results</a></div>
-            </div>
-             <div class="subject-card">
-                <div class="card-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.043A5.25 5.25 0 017.5 15h9a5.25 5.25 0 01-.788.043m-8.424 0a5.25 5.25 0 00-1.06 4.135m10.544 0a5.25 5.25 0 01-1.06-4.135m0 0c0-2.896 2.354-5.25 5.25-5.25s5.25 2.354 5.25 5.25m0 0c0 2.896-2.354 5.25-5.25 5.25m0 0c-2.896 0-5.25-2.354-5.25-5.25m-10.5 0c0 2.896 2.354 5.25 5.25 5.25s5.25-2.354 5.25-5.25m0 0c0-2.896-2.354-5.25-5.25-5.25S2.25 12.104 2.25 15" /></svg></div>
-                <h3>Computer Networks</h3>
-                <div class="card-actions"><a href="{{ url_for('admin_questions', subject='cn') }}" class="btn">Manage Qs</a><a href="{{ url_for('admin_results', subject='cn') }}" class="btn results">Results</a></div>
-            </div>
-             <div class="subject-card">
-                <div class="card-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg></div>
-                <h3>Software Engineering</h3>
-                <div class="card-actions"><a href="{{ url_for('admin_questions', subject='se') }}" class="btn">Manage Qs</a><a href="{{ url_for('admin_results', subject='se') }}" class="btn results">Results</a></div>
-            </div>
-        </div>
-    </main>
+            <nav class="nav-menu">
+                <a href="{{ url_for('admin_dashboard') }}" class="active">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 1.085-1.085-1.085m0 0V3m0 13.5v.003V3m0 13.5A2.25 2.25 0 0010.5 18.75h3A2.25 2.25 0 0015.75 16.5m-7.5 0v-1.085l-1.085 1.085m1.085-1.085l1-1.085m-1 1.085v.003" /></svg>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ url_for('admin_manage_students') }}">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-4.67c.12-.318.232-.656.328-1.014a.75.75 0 011.498-.07c.096.358.208.71.328 1.014.453 1.196.992 2.303 1.634 3.336" /></svg>
+                    <span>Students</span>
+                </a>
+                <a href="{{ url_for('admin_manage_subjects') }}">
+                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+                    <span>Subjects</span>
+                </a>
+                 <a href="{{ url_for('admin_results') }}">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 100 15 7.5 7.5 0 000-15zM21 21l-5.197-5.197" /></svg>
+                    <span>Results</span>
+                </a>
+            </nav>
+        </aside>
+
+        <main class="main-content" id="main-content">
+            <header class="header">
+                <h1>Command Center</h1>
+                <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+            </header>
+            
+            <section class="proctoring-card" id="proctoring-card">
+                <h2>Live Proctoring</h2>
+                <nav class="nav-menu">
+    <a href="{{ url_for('admin_dashboard') }}"><span>Dashboard</span></a>
+    <!-- ... other links ... -->
+    <a href="{{ url_for('admin_profile') }}"><span>Profile</span></a>
+    <a href="{{ url_for('admin_results') }}"><span>Results</span></a>
+</nav>
+                <div id="live-proctoring-grid">
+                    <div id="no-students-message">
+                        SCANNING FOR ACTIVE EXAMS...
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
 
     <script>
-    const socket = io();
-    const grid = document.getElementById('proctoring-grid');
+        /**
+         * Animation 1: Plexus Network Background
+         * Particles connecting with lines based on proximity.
+         */
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, particles; const particleCount = 150; const connectionRadius = 120;
+        const particleSpeedFactor = 0.2; let mouse = { x: null, y: null, radius: 180 };
+        // --- [Plexus Particle Class & Animation Functions] ---
+        class Particle{constructor(){this.x=Math.random()*width;this.y=Math.random()*height;this.vx=(Math.random()-.5)*particleSpeedFactor;this.vy=(Math.random()-.5)*particleSpeedFactor;this.radius=Math.random()*1.5+.5}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>width)this.vx*=-1;if(this.y<0||this.y>height)this.vy*=-1;if(mouse.x){const t=this.x-mouse.x,e=this.y-mouse.y,i=Math.sqrt(t*t+e*e);if(i<mouse.radius){const s=(mouse.radius-i)/mouse.radius;this.x+=t/i*s*1.5;this.y+=e/i*s*1.5}}}draw(){ctx.beginPath();ctx.arc(this.x,this.y,this.radius,0,2*Math.PI);ctx.fillStyle="rgba(0, 191, 255, 0.7)";ctx.fill()}}function initParticles(){width=canvas.width=window.innerWidth;height=canvas.height=window.innerHeight;particles=[];for(let t=0;t<particleCount;t++)particles.push(new Particle)}function drawConnections(){for(let t=0;t<particles.length;t++)for(let e=t+1;e<particles.length;e++){const i=particles[t].x-particles[e].x,s=particles[t].y-particles[e].y,o=Math.sqrt(i*i+s*s);if(o<connectionRadius){const a=1-o/connectionRadius;ctx.beginPath();ctx.moveTo(particles[t].x,particles[t].y);ctx.lineTo(particles[e].x,particles[e].y);const n=ctx.createLinearGradient(particles[t].x,particles[t].y,particles[e].x,particles[e].y);n.addColorStop(0,`rgba(0, 191, 255, ${a*.1})`);n.addColorStop(.5,`rgba(255, 0, 255, ${a*.3})`);n.addColorStop(1,`rgba(0, 191, 255, ${a*.1})`);ctx.strokeStyle=n;ctx.lineWidth=.5;ctx.stroke()}}}function animateParticles(){ctx.clearRect(0,0,width,height);for(const t of particles){t.update();t.draw()}drawConnections();requestAnimationFrame(animateParticles)}
+        // --- [End of Background JS] ---
+        window.addEventListener('resize', initParticles); window.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; }); window.addEventListener('mouseleave', () => { mouse.x = null; mouse.y = null; });
+        initParticles(); animateParticles();
 
-    // This is the complete function with the live timer AND all action buttons
-    function createStudentFeed(roll_no, info) {
-        if (!info || document.getElementById(`feed-${roll_no}`)) return;
+        /**
+         * Animation 2: 3D Parallax Tilt
+         */
+        const sidebar = document.getElementById('sidebar');
+        const proctoringCard = document.getElementById('proctoring-card');
+        const mainContent = document.getElementById('main-content');
+        const maxRotate = 6;
+        // --- [Parallax Functions] ---
+        function applyParallax(element, container, e, maxRot) { const rect = container.getBoundingClientRect(); const x = e.clientX - rect.left - rect.width / 2; const y = e.clientY - rect.top - rect.height / 2; const rotateY = (x / (rect.width / 2)) * maxRot; const rotateX = -(y / (rect.height / 2)) * maxRot; element.style.transform = `rotateY(${rotateY}deg) rotateX(${rotateX}deg) translateZ(5px)`; } function resetParallax(element) { element.style.transform = `rotateY(0deg) rotateX(0deg) translateZ(0)`; }
+        // --- [End Parallax Functions] ---
+        mainContent.addEventListener('mousemove', (e) => {
+            applyParallax(sidebar, mainContent, e, maxRotate * 0.5);
+            applyParallax(proctoringCard, mainContent, e, maxRotate);
+        });
+        mainContent.addEventListener('mouseleave', () => {
+            resetParallax(sidebar);
+            resetParallax(proctoringCard);
+        });
 
-        const noStudentsMessage = grid.querySelector('.no-students-message');
-        if (noStudentsMessage) noStudentsMessage.remove();
 
-        const feedDiv = document.createElement('div');
-        feedDiv.className = 'student-feed';
-        feedDiv.id = `feed-${roll_no}`;
-        
-        const img = document.createElement('img');
-        img.id = `img-${roll_no}`;
-        img.alt = `Live feed ${roll_no}`;
-        
-        const name = document.createElement('h3');
-        name.textContent = info.name;
+        /**
+         * Functionality 3: Live Proctoring Grid Updates
+         */
+        const proctoringGrid = document.getElementById('live-proctoring-grid');
+        const noStudentsMessage = document.getElementById('no-students-message');
 
-        // Div for status text (Roll No, Subject) and the live timer
-        const statusDiv = document.createElement('div');
-        statusDiv.style.display = 'flex';
-        statusDiv.style.justifyContent = 'space-between';
-        statusDiv.style.alignItems = 'center';
-        statusDiv.style.marginBottom = '5px';
-        statusDiv.innerHTML = `
-            <p style="margin: 0;">Roll No: ${roll_no} | Subject: ${info.subject.toUpperCase()}</p>
-            <p id="timer-${roll_no}" class="student-timer" data-start-time="${info.startTime}" style="margin: 0; font-weight: bold;">
-                <span style="color: #00ff8c;">🟢</span> 00:00
-            </p>
-        `;
-        
-        // Div for the action buttons (Warn, Terminate)
-        const actionsDiv = document.createElement('div');
-        actionsDiv.style.marginTop = '10px';
-        actionsDiv.style.display = 'flex';
-        actionsDiv.style.gap = '5px';
-        actionsDiv.innerHTML = `
-            <button class="btn-action warn" data-roll-no="${roll_no}" data-msg="Warning: Please ensure your face is well-lit.">💡 Low Light</button>
-            <button class="btn-action warn" data-roll-no="${roll_no}" data-msg="Warning: Please ensure you are alone in the room.">👤 Person Detected</button>
-            <button class="btn-action terminate" data-roll-no="${roll_no}" style="background-color: #900C3F; color: white; border-color: #FF5733;">Terminate</button>
-        `;
+        function addStudentFeed(rollNo, studentInfo) {
+            console.log(`ADMIN: Adding feed for ${rollNo}`);
+            if(noStudentsMessage) noStudentsMessage.style.display = 'none';
 
-        feedDiv.appendChild(img);
-        feedDiv.appendChild(name);
-        feedDiv.appendChild(statusDiv);
-        feedDiv.appendChild(actionsDiv);
-        grid.appendChild(feedDiv);
-    }
+            // Check if feed already exists
+            if (proctoringGrid.querySelector(`.student-feed[data-rollno="${rollNo}"]`)) {
+                 console.log(`ADMIN: Feed for ${rollNo} already exists.`);
+                 return;
+            }
 
-    // Function to update all timers every second
-    function updateAllTimers() {
-        document.querySelectorAll('.student-timer').forEach(timerEl => {
-            const startTime = parseFloat(timerEl.dataset.startTime);
-            if (isNaN(startTime)) return;
+            const feedDiv = document.createElement('div');
+            feedDiv.className = 'student-feed';
+            feedDiv.dataset.rollno = rollNo;
 
-            const elapsedSeconds = Math.floor((Date.now() / 1000) - startTime);
-            const minutes = Math.floor(elapsedSeconds / 60);
-            const seconds = elapsedSeconds % 60;
-            const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            
-            // Only update if the student is not marked as disconnected
-            if (!timerEl.textContent.includes("Disconnected")) {
-                 timerEl.innerHTML = `<span style="color: #00ff8c;">🟢</span> ${formattedTime}`;
+            const videoImg = document.createElement('img'); // Use img for base64
+            videoImg.alt = `Live feed for ${rollNo}`;
+            videoImg.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs="; // 1x1 black pixel
+
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'student-info';
+            infoDiv.innerHTML = `
+                <div class="student-info-header">
+                    <span>${studentInfo?.name || `Roll: ${rollNo}`}</span>
+                    <span class="status ok">Status: OK</span>
+                </div>
+                 <div class="student-actions">
+                    <button class="btn-warn" data-rollno="${rollNo}">Warn</button>
+                    <button class="btn-terminate" data-rollno="${rollNo}">Terminate</button>
+                 </div>
+            `;
+
+            feedDiv.appendChild(videoImg);
+            feedDiv.appendChild(infoDiv);
+            proctoringGrid.appendChild(feedDiv);
+        }
+
+        function removeStudentFeed(rollNo) {
+             console.log(`ADMIN: Removing feed for ${rollNo}`);
+             const feed = proctoringGrid.querySelector(`.student-feed[data-rollno="${rollNo}"]`);
+             if (feed) {
+                 feed.remove();
+             }
+             // Check if only the message div is left
+             if (proctoringGrid.querySelectorAll('.student-feed').length === 0) {
+                if(noStudentsMessage) noStudentsMessage.style.display = 'flex';
+             }
+        }
+
+        function updateStudentVideo(rollNo, frameData) {
+            const feed = proctoringGrid.querySelector(`.student-feed[data-rollno="${rollNo}"]`);
+            if (feed) {
+                const videoImg = feed.querySelector('img');
+                if (videoImg) {
+                    videoImg.src = frameData;
+                }
+            }
+        }
+
+        function triggerStudentAlert(rollNo, alertMessage) {
+            console.log(`ADMIN: Alert for ${rollNo}: ${alertMessage}`);
+            const feed = proctoringGrid.querySelector(`.student-feed[data-rollno="${rollNo}"]`);
+            if (feed) {
+                feed.classList.add('student-alert');
+                const statusSpan = feed.querySelector('.student-info .status');
+                if (statusSpan) {
+                     statusSpan.textContent = `ALERT: ${alertMessage}`;
+                     statusSpan.classList.remove('ok');
+                     statusSpan.classList.add('alert');
+                }
+                // Clear alert visual after 5 seconds
+                setTimeout(() => {
+                    feed.classList.remove('student-alert');
+                     if (statusSpan) {
+                        statusSpan.textContent = 'Status: OK';
+                        statusSpan.classList.remove('alert');
+                        statusSpan.classList.add('ok');
+                     }
+                }, 5000);
+            }
+        }
+
+        // --- SocketIO Integration ---
+        const socket = io();
+
+        socket.on('connect', () => {
+            console.log('ADMIN: Connected to SocketIO. Joining admin room...');
+            socket.emit('admin_join');
+        });
+
+        socket.on('disconnect', () => {
+             console.log('ADMIN: Disconnected from SocketIO.');
+        });
+
+        // *** IMPROVED HANDLER ***
+        socket.on('active_students_list', (students) => {
+             console.log('ADMIN: Received initial active students:', students);
+             
+             // Remove all existing student feeds
+             proctoringGrid.querySelectorAll('.student-feed').forEach(feed => feed.remove());
+
+             if (students && Object.keys(students).length > 0) {
+                 noStudentsMessage.style.display = 'none';
+                 for (const rollNo in students) {
+                     addStudentFeed(rollNo, students[rollNo]);
+                 }
+             } else {
+                 noStudentsMessage.style.display = 'flex'; // Use flex to match new style
+             }
+        });
+
+        socket.on('student_started_exam', (data) => {
+             console.log('ADMIN: Student started:', data);
+             if(data && data.roll_no) {
+                addStudentFeed(data.roll_no, data.info);
+             } else {
+                console.error("ADMIN: Received invalid student_started_exam data", data);
+             }
+        });
+
+        socket.on('student_left_exam', (data) => {
+             console.log('ADMIN: Student left:', data);
+              if(data && data.roll_no) {
+                removeStudentFeed(data.roll_no);
+              } else {
+                 console.error("ADMIN: Received invalid student_left_exam data", data);
+              }
+        });
+
+        socket.on('video_frame', (data) => {
+            if(data && data.roll_no && data.frame) {
+                // Use requestAnimationFrame to prevent layout thrashing
+                requestAnimationFrame(() => {
+                     updateStudentVideo(data.roll_no, data.frame);
+                });
             }
         });
-    }
 
-    // Start the global timer updater
-    setInterval(updateAllTimers, 1000);
-
-    // --- SOCKET.IO EVENT LISTENERS ---
-
-    socket.on('connect', () => {
-        socket.emit('admin_join');
-    });
-
-    socket.on('active_students_list', (students) => {
-        grid.innerHTML = '<p class="no-students-message">Waiting for students to start their exams...</p>';
-        for (const roll_no in students) {
-            createStudentFeed(roll_no, students[roll_no]);
-        }
-    });
-
-    socket.on('student_started_exam', (data) => {
-        createStudentFeed(data.roll_no, data.info);
-    });
-
-    socket.on('student_left_exam', (data) => {
-        const timerEl = document.getElementById(`timer-${data.roll_no}`);
-        if (timerEl) {
-            timerEl.innerHTML = `<span style="color: #ff4d4d;">🔴</span> Disconnected`;
-        }
-        const imgEl = document.getElementById(`img-${data.roll_no}`);
-        if (imgEl) {
-            imgEl.style.filter = 'grayscale(100%)';
-        }
-    });
-
-    socket.on('video_frame', (data) => {
-        const img = document.getElementById(`img-${data.roll_no}`);
-        if (img) {
-            img.src = data.frame;
-        }
-    });
-
-    // This single listener handles clicks for ALL buttons
-    grid.addEventListener('click', function(event) {
-        const target = event.target;
-
-        // Handle Warning Clicks
-        if (target.classList.contains('warn')) {
-            const rollNo = target.dataset.rollNo;
-            const message = target.dataset.msg;
-            socket.emit('send_warning', { 'student_roll_no': rollNo, 'message': message });
-        }
-
-        // Handle Terminate Clicks
-        if (target.classList.contains('terminate')) {
-            const rollNo = target.dataset.rollNo;
-            if (confirm(`Are you sure you want to terminate the exam for Roll No: ${rollNo}?`)) {
-                socket.emit('terminate_exam', { 'student_roll_no': rollNo });
-                target.disabled = true;
-                target.textContent = 'Terminated';
+        socket.on('proctoring_alert', (data) => {
+            console.log('ADMIN: Received proctoring_alert:', data);
+            if(data && data.roll_no && data.alert) {
+                triggerStudentAlert(data.roll_no, data.alert);
             }
-        }
-    });// In admin.html, inside the <script> tag
+        });
 
-socket.on('proctoring_alert', function(data) {
-    const feed = document.getElementById(`feed-${data.roll_no}`);
-    if (feed) {
-        // Add a glowing red border to highlight the student
-        feed.style.border = '3px solid #ff4d4d';
-        feed.style.boxShadow = '0 0 20px #ff4d4d';
+        // --- Event delegation for action buttons ---
+        proctoringGrid.addEventListener('click', (event) => {
+            const target = event.target;
+            
+            // Find the closest button with a rollno
+            const actionButton = target.closest('button[data-rollno]');
+            if (!actionButton) return; 
 
-        // Check if an alert message element already exists, if not, create one
-        let alertMsg = document.getElementById(`alert-${data.roll_no}`);
-        if (!alertMsg) {
-            alertMsg = document.createElement('p');
-            alertMsg.id = `alert-${data.roll_no}`;
-            alertMsg.style.color = '#ff4d4d';
-            alertMsg.style.fontWeight = 'bold';
-            alertMsg.style.textAlign = 'center';
-            // Add the alert message after the action buttons
-            const actionsDiv = feed.querySelector('.student-actions');
-            if (actionsDiv) {
-                actionsDiv.insertAdjacentElement('afterend', alertMsg);
-            } else {
-                feed.appendChild(alertMsg);
+            const rollNo = actionButton.dataset.rollno;
+
+            if (actionButton.classList.contains('btn-warn')) {
+                const message = prompt(`Enter warning for student ${rollNo}:`, "Focus on your exam. You are being monitored.");
+                if (message) {
+                    console.log(`ADMIN: Sending warning to ${rollNo}: ${message}`);
+                    socket.emit('send_warning', { student_roll_no: rollNo, message: message });
+                }
+            } else if (actionButton.classList.contains('btn-terminate')) {
+                if (confirm(`Are you sure you want to terminate the exam for student ${rollNo}? This is irreversible.`)) {
+                    console.log(`ADMIN: Terminating exam for ${rollNo}`);
+                    socket.emit('terminate_exam', { student_roll_no: rollNo });
+                }
             }
-        }
-        // Update the alert text
-        alertMsg.textContent = `🚨 AI ALERT: ${data.alert}!`;
-    }
-});
-</script>
+        });
+
+    </script>
+
 </body>
 </html>

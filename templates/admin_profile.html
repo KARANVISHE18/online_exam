@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Profile & Face Registration</title>
+    <!-- Include face-api.js -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <!-- Standard Admin Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- Root Variables & Theme (Electric Blue / Magenta - Consistent) --- */
+        :root {
+            --primary-glow: #00BFFF; /* Electric Blue */
+            --secondary-glow: #FF00FF; /* Magenta */
+            --success-glow: #00FF7F; /* Green */
+            --error-glow: #FF4D4D; /* Red */
+            --background-dark: #03011a;
+            --card-bg: rgba(10, 5, 35, 0.7);
+            --sidebar-bg: rgba(5, 2, 25, 0.7);
+            --border-color: rgba(0, 191, 255, 0.2);
+            --border-color-active: rgba(0, 191, 255, 0.6);
+            --text-color: #e0f0ff;
+            --secondary-text: rgba(224, 240, 255, 0.7);
+            --input-bg: rgba(0, 0, 0, 0.2);
+            --font-display: 'Orbitron', sans-serif;
+            --font-body: 'Poppins', sans-serif;
+            --font-mono: 'Share Tech Mono', monospace;
+        }
+
+        /* --- Global & Body Setup (Consistent) --- */
+        body, html {
+            height: 100%; margin: 0; font-family: var(--font-body);
+            color: var(--text-color); overflow: hidden;
+            background-color: var(--background-dark); perspective: 1500px;
+        }
+
+        /* --- Animated Background Canvas (Consistent) --- */
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.7; }
+
+        /* --- HUD Elements (Consistent) --- */
+        .hud-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+        .hud-corner { position: absolute; width: 30px; height: 30px; border: 2px solid var(--border-color); opacity: 0.6; animation: pulseGlow 4s infinite alternate ease-in-out; }
+        .hud-corner.top-left { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+        .hud-corner.top-right { top: 20px; right: 20px; border-left: none; border-bottom: none; }
+        .hud-corner.bottom-left { bottom: 20px; left: 20px; border-right: none; border-top: none; }
+        .hud-corner.bottom-right { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+        @keyframes pulseGlow { from { box-shadow: 0 0 5px var(--border-color); opacity: 0.4; } to { box-shadow: 0 0 15px var(--border-color); opacity: 0.7; } }
+
+        /* --- Main Layout (Consistent) --- */
+        .container { display: flex; height: 100%; }
+
+        /* --- Sidebar Styling (Consistent) --- */
+        .sidebar {
+            width: 280px; flex-shrink: 0; background: var(--sidebar-bg);
+            backdrop-filter: blur(20px) saturate(180%); border-right: 1px solid var(--border-color);
+            padding: 30px; display: flex; flex-direction: column; z-index: 2;
+            transform-style: preserve-3d; transition: transform 0.1s linear;
+            box-shadow: 5px 0 30px rgba(0,0,0,0.3);
+        }
+        .sidebar-header h2 { font-family: var(--font-display); margin: 0 0 40px 0; font-size: 1.8rem; color: var(--primary-glow); text-shadow: 0 0 10px var(--primary-glow); text-align: center; letter-spacing: 1px; }
+        .nav-menu { flex-grow: 1; }
+        .nav-menu a { display: flex; align-items: center; padding: 15px 20px; color: var(--secondary-text); text-decoration: none; border-radius: 8px; margin-bottom: 10px; transition: all 0.3s ease; position: relative; font-weight: 400; }
+        .nav-menu a svg { margin-right: 15px; width: 22px; height: 22px; stroke-width: 1.5; opacity: 0.7; transition: all 0.3s ease; }
+        .nav-menu a:hover { background-color: rgba(0, 191, 255, 0.1); color: #fff; }
+        .nav-menu a:hover svg { opacity: 1; filter: drop-shadow(0 0 5px var(--primary-glow)); }
+        .nav-menu a.active { background-color: rgba(0, 191, 255, 0.15); color: #fff; box-shadow: inset 3px 0 0 var(--primary-glow); font-weight: 600; }
+        .nav-menu a.active svg { opacity: 1; color: var(--primary-glow); filter: drop-shadow(0 0 8px var(--primary-glow)); }
+        .logout-btn { /* Style for logout button if needed */ }
+
+
+        /* --- Main Content Area (Consistent) --- */
+        .main-content { flex-grow: 1; padding: 40px 50px; overflow-y: auto; position: relative; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header h1 { font-family: var(--font-display); margin: 0; font-size: 3rem; color: #fff; letter-spacing: 1px; text-shadow: 0 0 15px rgba(0, 191, 255, 0.4); }
+
+        /* --- Flash Messages (Consistent) --- */
+        #flash-messages { margin-bottom: 30px; display: flex; flex-direction: column; gap: 15px; }
+        .flash-message { padding: 15px 20px; border-radius: 8px; border-left: 5px solid; background: rgba(0,0,0,0.3); display: flex; align-items: center; font-size: 0.95rem; animation: fadeInSlideDown 0.5s ease-out forwards; opacity: 0; transform: translateY(-10px); }
+        .flash-message svg { width: 20px; height: 20px; margin-right: 15px; flex-shrink: 0; }
+        .flash-message.success { border-color: var(--success-glow); color: var(--success-glow); } .flash-message.success svg { color: var(--success-glow); }
+        .flash-message.error { border-color: var(--error-glow); color: var(--error-glow); } .flash-message.error svg { color: var(--error-glow); }
+        .flash-message.info { border-color: var(--primary-glow); color: var(--primary-glow); } .flash-message.info svg { color: var(--primary-glow); }
+        @keyframes fadeInSlideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- Content Card Styling (Consistent) --- */
+        .content-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(15px) saturate(160%);
+            padding: 40px; /* Increased padding */
+            border-radius: 15px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4); /* Enhanced shadow */
+            transform-style: preserve-3d;
+            transition: transform 0.1s linear, box-shadow 0.3s ease;
+            margin-bottom: 30px;
+            text-align: center; /* Center content within the card */
+            /* Inner glowing border effect */
+            position: relative;
+            overflow: hidden; /* For glow effect */
+             &::before {
+                content: '';
+                position: absolute;
+                inset: -2px; /* Slightly outside the border */
+                border-radius: 17px;
+                background: linear-gradient(60deg, var(--primary-glow), var(--secondary-glow));
+                z-index: -1;
+                filter: blur(20px); /* Soft glow */
+                opacity: 0; /* Hidden by default */
+                transition: opacity 0.4s ease;
+                animation: pulse-glow-border 5s infinite alternate ease-in-out;
+            }
+             &:hover::before {
+                 opacity: 0.15; /* Subtle glow on hover */
+             }
+            @keyframes pulse-glow-border {
+                from { opacity: 0.1; } to { opacity: 0.25; }
+            }
+        }
+        .content-card h2 {
+            font-family: var(--font-display); font-weight: 700; /* Bolder title */ color: var(--text-color);
+            border-bottom: 1px solid var(--border-color); padding-bottom: 20px; /* More space */
+            margin: 0 auto 35px auto; /* Center title */ font-size: 2rem; /* Larger */ letter-spacing: 1px; /* More spacing */
+            max-width: 90%;
+            text-shadow: 0 0 10px rgba(0, 191, 255, 0.3);
+        }
+
+        /* --- Button Styling (Consistent, slightly enhanced) --- */
+         .btn {
+            padding: 14px 35px; /* Slightly larger */ background: transparent; border: 2px solid var(--primary-glow);
+            border-radius: 10px; /* More rounded */ color: var(--primary-glow); font-size: 1.1rem; /* Slightly larger text */
+            font-weight: 700; font-family: var(--font-display); cursor: pointer;
+            transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1.5px; /* More spacing */
+            display: inline-block; margin-top: 25px; /* More space */
+            text-shadow: 0 0 5px rgba(0, 191, 255, 0.3);
+        }
+        .btn:hover:not(:disabled) {
+            background: var(--primary-glow); color: var(--background-dark);
+            box-shadow: 0 0 30px var(--primary-glow); /* Stronger glow */ transform: translateY(-3px) scale(1.03); /* Lift more */
+            text-shadow: none;
+        }
+        .btn:disabled {
+             cursor: not-allowed; opacity: 0.4; border-color: var(--secondary-text); color: var(--secondary-text);
+             background: rgba(0,0,0,0.2);
+             text-shadow: none;
+        }
+
+        /* --- Video & Status Styling --- */
+        #video-container {
+            position: relative;
+            width: 360px; /* Larger video */
+            max-width: 100%;
+            aspect-ratio: 4 / 3;
+            margin: 35px auto 25px auto; /* Adjusted spacing */
+            border: 3px solid var(--border-color-active); /* Thicker active border */
+            border-radius: 12px;
+            overflow: hidden;
+            background: #05050a; /* Darker background */
+            display: none; /* Hidden initially */
+            box-shadow: 0 0 30px rgba(0, 191, 255, 0.4); /* Stronger shadow */
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        /* Style when capturing */
+        #video-container.capturing {
+             border-color: var(--secondary-glow);
+             box-shadow: 0 0 40px var(--secondary-glow);
+        }
+        video {
+            display: block; width: 100%; height: 100%;
+            object-fit: cover; transform: scaleX(-1); /* Mirror view */
+        }
+        canvas { position: absolute; top: 0; left: 0; }
+
+        #status {
+            margin-top: 20px; font-weight: 600; font-family: var(--font-mono);
+            font-size: 1.1rem; /* Slightly larger status text */ letter-spacing: 0.8px; min-height: 30px; /* Prevent layout shift */
+            display: flex; /* Align icon and text */
+            align-items: center;
+            justify-content: center; /* Center status */
+            gap: 10px; /* Space between icon and text */
+        }
+        .loader { /* Consistent loader style */
+            border: 4px solid rgba(0, 191, 255, 0.2); border-top: 4px solid var(--primary-glow);
+            border-radius: 50%; width: 24px; height: 24px; /* Larger loader */ animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Status icons */
+        .status-icon { width: 24px; height: 24px; }
+        .status-error { color: var(--error-glow); text-shadow: 0 0 10px var(--error-glow); }
+        .status-success { color: var(--success-glow); text-shadow: 0 0 10px var(--success-glow); }
+
+        /* Paragraph styling */
+        .content-card p {
+             color: var(--secondary-text); font-size: 1.1rem; line-height: 1.7; /* Increased line height */ margin-bottom: 8px;
+        }
+        .content-card p.small-info { font-size: 0.95rem; margin-bottom: 25px; opacity: 0.8; }
+
+    </style>
+</head>
+<body>
+    <!-- Consistent Background Canvas -->
+    <canvas id="bg-canvas"></canvas>
+    <!-- Consistent HUD Overlay -->
+    <div class="hud-overlay">
+        <span class="hud-corner top-left"></span>
+        <span class="hud-corner top-right"></span>
+        <span class="hud-corner bottom-left"></span>
+        <span class="hud-corner bottom-right"></span>
+    </div>
+
+    <div class="container">
+        <!-- Consistent Admin Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>Admin Console</h2>
+            </div>
+            <!-- Standard Nav Menu - Ensure 'Profile' link is active -->
+            <nav class="nav-menu">
+                <a href="{{ url_for('admin_dashboard') }}">
+                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 1.085-1.085-1.085m0 0V3m0 13.5v.003V3m0 13.5A2.25 2.25 0 0010.5 18.75h3A2.25 2.25 0 0015.75 16.5m-7.5 0v-1.085l-1.085 1.085m1.085-1.085l1-1.085m-1 1.085v.003" /></svg>
+                    <span>Dashboard</span></a>
+                <a href="{{ url_for('admin_manage_students') }}">
+                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-4.67c.12-.318.232-.656.328-1.014a.75.75 0 011.498-.07c.096.358.208.71.328 1.014.453 1.196.992 2.303 1.634 3.336" /></svg>
+                    <span>Students</span></a>
+                <a href="{{ url_for('admin_manage_subjects') }}">
+                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+                    <span>Subjects</span></a>
+                <a href="{{ url_for('admin_profile') }}" class="active"> <!-- Active Class Here -->
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"> <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <span>Profile</span></a>
+                <a href="{{ url_for('admin_results') }}">
+                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 100 15 7.5 7.5 0 000-15zM21 21l-5.197-5.197" /></svg>
+                    <span>Results</span></a>
+            </nav>
+            <!-- Consistent Logout Button -->
+             <a href="{{ url_for('logout') }}" class="logout-btn" style="margin-top: auto; text-align: center; padding: 10px 25px; background: transparent; border: 2px solid var(--border-color); border-radius: 8px; color: var(--secondary-text); font-family: var(--font-display); font-size: 1rem; cursor: pointer; transition: all 0.3s ease; text-decoration: none;">Logout</a>
+        </aside>
+
+        <main class="main-content" id="main-content">
+            <header class="header">
+                <h1>Admin Profile</h1>
+                <!-- Optional: Add other header elements if needed -->
+            </header>
+
+             <!-- Consistent Flash Messages -->
+             <div id="flash-messages">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">
+                             {% if category == 'success' %} <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                             {% elif category == 'error' %} <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+                             {% else %} <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                             {% endif %}
+                            <span>{{ message }}</span>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+             </div>
+
+            <section class="content-card" id="face-reg-card">
+                <h2>Face Registration</h2>
+                {% if face_registered %}
+                    <p class="status-success">
+                         <svg class="status-icon" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                         Your face is registered.
+                    </p>
+                    <!-- CORRECTED: Set initial text based on face_registered -->
+                    <button id="register-face-btn" class="btn">Re-register Face</button>
+                {% else %}
+                    <p>Your face is not yet registered for enhanced login security.</p>
+                    <p class="small-info">Click below, allow camera access, and look directly at the camera until registration is confirmed.</p>
+                     <!-- CORRECTED: Set initial text based on face_registered -->
+                    <button id="register-face-btn" class="btn">Register Face</button>
+                {% endif %}
+
+                <!-- Video container centered -->
+                <div id="video-container">
+                    <video id="video" autoplay muted playsinline></video>
+                    <canvas id="overlay"></canvas> <!-- Optional overlay for drawing boxes -->
+                </div>
+                <!-- Enhanced Status Area -->
+                <div id="status">
+                    <!-- Status message appears here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // --- Animation 1: Plexus Background (Consistent) ---
+        const canvasBg = document.getElementById('bg-canvas');
+        const ctxBg = canvasBg.getContext('2d');
+        let widthBg, heightBg, particlesBg; const particleCountBg = 150; const connectionRadiusBg = 120;
+        const particleSpeedFactorBg = 0.2; let mouseBg = { x: null, y: null, radius: 180 };
+        class ParticleBg{constructor(){this.x=Math.random()*widthBg;this.y=Math.random()*heightBg;this.vx=(Math.random()-.5)*particleSpeedFactorBg;this.vy=(Math.random()-.5)*particleSpeedFactorBg;this.radius=Math.random()*1.5+.5}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>widthBg)this.vx*=-1;if(this.y<0||this.y>heightBg)this.vy*=-1;if(mouseBg.x){const t=this.x-mouseBg.x,e=this.y-mouseBg.y,i=Math.sqrt(t*t+e*e);if(i<mouseBg.radius){const s=(mouseBg.radius-i)/mouseBg.radius;this.x+=t/i*s*1.5;this.y+=e/i*s*1.5}}}draw(){ctxBg.beginPath();ctxBg.arc(this.x,this.y,this.radius,0,2*Math.PI);ctxBg.fillStyle="rgba(0, 191, 255, 0.7)";ctxBg.fill()}}function initParticlesBg(){widthBg=canvasBg.width=window.innerWidth;heightBg=canvasBg.height=window.innerHeight;particlesBg=[];for(let t=0;t<particleCountBg;t++)particlesBg.push(new ParticleBg)}function drawConnectionsBg(){for(let t=0;t<particlesBg.length;t++)for(let e=t+1;e<particlesBg.length;e++){const i=particlesBg[t].x-particlesBg[e].x,s=particlesBg[t].y-particlesBg[e].y,o=Math.sqrt(i*i+s*s);if(o<connectionRadiusBg){const a=1-o/connectionRadiusBg;ctxBg.beginPath();ctxBg.moveTo(particlesBg[t].x,particlesBg[t].y);ctxBg.lineTo(particlesBg[e].x,particlesBg[e].y);const n=ctxBg.createLinearGradient(particlesBg[t].x,particlesBg[t].y,particlesBg[e].x,particlesBg[e].y);n.addColorStop(0,`rgba(0, 191, 255, ${a*.1})`);n.addColorStop(.5,`rgba(255, 0, 255, ${a*.3})`);n.addColorStop(1,`rgba(0, 191, 255, ${a*.1})`);ctxBg.strokeStyle=n;ctxBg.lineWidth=.5;ctxBg.stroke()}}}function animateParticlesBg(){ctxBg.clearRect(0,0,widthBg,heightBg);for(const t of particlesBg){t.update();t.draw()}drawConnectionsBg();requestAnimationFrame(animateParticlesBg)}
+        window.addEventListener('resize', initParticlesBg); window.addEventListener('mousemove', (e) => { mouseBg.x = e.clientX; mouseBg.y = e.clientY; }); window.addEventListener('mouseleave', () => { mouseBg.x = null; mouseBg.y = null; });
+        initParticlesBg(); animateParticlesBg();
+
+
+        // --- Animation 2: Parallax Tilt (Consistent) ---
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
+        const faceRegCard = document.getElementById('face-reg-card'); // Target the card
+        const maxRotate = 6;
+        function applyParallax(element, container, e, maxRot, invert = false) { const rect = container.getBoundingClientRect(); const x = e.clientX - rect.left - rect.width / 2; const y = e.clientY - rect.top - rect.height / 2; let rotateY = (x / (rect.width / 2)) * maxRot; let rotateX = -(y / (rect.height / 2)) * maxRot; if (invert) { rotateY *= -1; rotateX *= -1; } element.style.transform = `rotateY(${rotateY}deg) rotateX(${rotateX}deg) translateZ(5px)`; }
+        function resetParallax(element) { element.style.transform = `rotateY(0deg) rotateX(0deg) translateZ(0)`; }
+        mainContent.addEventListener('mousemove', (e) => {
+            applyParallax(sidebar, mainContent, e, maxRotate * 0.6, true); // Invert sidebar
+            applyParallax(faceRegCard, mainContent, e, maxRotate); // Apply to card
+        });
+        mainContent.addEventListener('mouseleave', () => {
+            resetParallax(sidebar);
+            resetParallax(faceRegCard); // Reset card
+        });
+
+
+        // --- Face Registration Logic ---
+        const video = document.getElementById('video');
+        const videoContainer = document.getElementById('video-container');
+        const statusEl = document.getElementById('status');
+        const registerBtn = document.getElementById('register-face-btn');
+        // --- CORRECTED: Store initial button text ---
+        const initialBtnText = registerBtn.textContent.trim(); // Get text set by Jinja
+        const MODEL_URL = '/static/models'; // Ensure models are in static/models
+        let stream = null;
+        let modelsLoaded = false;
+
+        // Icons for status messages
+        const successIcon = `<svg class="status-icon" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+        const errorIcon = `<svg class="status-icon" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>`;
+        const infoIcon = `<svg class="status-icon" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>`;
+
+
+        function setStatus(message, type = 'info') {
+            let icon = infoIcon;
+            let className = '';
+            if (type === 'success') {
+                icon = successIcon;
+                className = 'status-success';
+            } else if (type === 'error') {
+                icon = errorIcon;
+                className = 'status-error';
+            } else if (type === 'loading') {
+                icon = '<div class="loader"></div>'; // Use loader div directly
+            }
+            // --- CORRECTED: Ensure span exists ---
+            statusEl.innerHTML = `${icon} <span>${message || ''}</span>`; // Added default empty string
+            statusEl.className = className; // Apply class for color
+        }
+
+
+        async function loadModels() {
+            // --- FIX: Check faceapi object exists ---
+            if (typeof faceapi === 'undefined') {
+                setStatus('Face API library failed to load. Check script tag.', 'error');
+                console.error("faceapi is not defined. Check the script include for face-api.min.js");
+                return false;
+            }
+            if (modelsLoaded) return true;
+            setStatus('Loading AI Models...', 'loading');
+            try {
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+                ]);
+                console.log("Models loaded for registration");
+                modelsLoaded = true;
+                setStatus('Models Loaded. Ready to register.', 'info');
+                return true;
+            } catch (err) {
+                console.error("Error loading models:", err);
+                setStatus('Error loading AI models. Check console (F12) & model files.', 'error'); // Updated message
+                return false;
+            }
+        }
+
+        async function startVideo() {
+            if (stream) return true; // Don't start if already running, return true as it's 'started'
+            setStatus('Starting Camera...', 'loading');
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                videoContainer.style.display = 'block'; // Show video
+                await video.play(); // Wait for video to start playing
+                console.log("Camera started for registration");
+                setStatus('Please look directly at the camera.', 'info');
+                return true; // Indicate success
+            } catch (err) {
+                console.error("Error accessing camera:", err);
+                setStatus('Camera access denied or not found. Please check browser permissions.', 'error');
+                videoContainer.style.display = 'none';
+                stream = null;
+                return false; // Indicate failure
+            }
+        }
+
+        function stopVideo() {
+             if (stream) {
+                 stream.getTracks().forEach(track => track.stop());
+                 stream = null;
+                 video.srcObject = null;
+                 videoContainer.style.display = 'none'; // Hide video
+                 videoContainer.classList.remove('capturing'); // Remove capturing style
+                 console.log("Camera stopped.");
+             }
+             // Clear overlay if used
+             const overlay = document.getElementById('overlay');
+             if (overlay) {
+                  const context = overlay.getContext('2d');
+                  if (context) {
+                     context.clearRect(0, 0, overlay.width, overlay.height);
+                  }
+             }
+        }
+
+        async function captureAndRegister() {
+            registerBtn.disabled = true;
+            registerBtn.innerHTML = 'Capturing... <div class="loader"></div>';
+            setStatus('Capturing... Hold Still.', 'loading');
+            videoContainer.classList.add('capturing'); // Add visual indicator
+
+            if (!stream || video.paused || video.ended || video.readyState < 3) { // Check readyState
+                 setStatus('Camera error or not ready. Please try again.', 'error');
+                 registerBtn.disabled = false;
+                 // --- CORRECTED: Use stored initial text ---
+                 registerBtn.textContent = initialBtnText;
+                 stopVideo();
+                 return;
+            }
+
+            try {
+                // Short delay for stability
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // --- CORRECTED DETECTION AND DESCRIPTOR CODE ---
+                console.log("Attempting face detection...");
+                // Step 1: Detect the face and landmarks FIRST
+                const detectionWithLandmarks = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224 }))
+                                                        .withFaceLandmarks();
+
+                console.log("Detection result:", detectionWithLandmarks ? "Face Found" : "No Face");
+
+                if (detectionWithLandmarks) {
+                    setStatus('Face Detected. Computing Descriptor...', 'loading');
+                    // Step 2: Compute the descriptor using the result from Step 1
+                    const faceDescriptorResult = await faceapi.computeFaceDescriptor(video, detectionWithLandmarks.landmarks);
+
+                    if (faceDescriptorResult) {
+                        const descriptor = faceDescriptorResult; // This is the Float32Array
+                        // --- END CORRECTION ---
+
+                        // Convert descriptor to JSON string (Keep this part)
+                        const descriptorArray = Array.from(descriptor);
+                        const descriptorString = JSON.stringify(descriptorArray);
+                        console.log("Sending descriptor to server...");
+
+                        // Send to server (Keep this part)
+                        const response = await fetch("{{ url_for('handle_admin_register_face') }}", {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ descriptor: descriptorString })
+                        });
+
+                        // --- CORRECTED: Check response before parsing JSON ---
+                        if (!response.ok) {
+                             // Try to get error message from server response body
+                             let serverError = `Server responded with status ${response.status}`;
+                             try {
+                                 const errorData = await response.json();
+                                 serverError = errorData.error || serverError;
+                             } catch (e) { /* Ignore if response not JSON */ }
+                             throw new Error(serverError);
+                        }
+
+                        const result = await response.json();
+                        console.log("Server response:", result);
+
+                        if (result.success) { // Check for success property from JSON
+                            setStatus('Face Registered Successfully!', 'success');
+                            // Update button text permanently after success
+                            registerBtn.textContent = 'Re-register Face';
+                            // Use flash message via redirect instead of just status text
+                            // Reload after a short delay to allow user to see success message
+                            setTimeout(() => window.location.reload(), 2000);
+                        } else {
+                            // If server responds ok but success is false
+                            throw new Error(result.error || 'Server reported registration failed.');
+                        }
+
+                    } else {
+                         // Handle case where descriptor couldn't be computed even if face was found
+                         setStatus('Face detected, but could not compute descriptor. Try again.', 'error');
+                         console.log("Descriptor computation failed.");
+                    }
+                } else {
+                     setStatus('No face detected. Please position yourself clearly in good lighting and try again.', 'error');
+                     console.log("No face detected during capture attempt.");
+                }
+                // --- END OF CORRECTED BLOCK ---
+            } catch (err) {
+                console.error("Registration error:", err);
+                setStatus(`Error during registration: ${err.message}`, 'error');
+            } finally {
+                 registerBtn.disabled = false;
+                 // --- CORRECTED: Use stored initial text ---
+                 // Only reset if registration didn't succeed (otherwise it's already 'Re-register Face')
+                 if (statusEl.className !== 'status-success') {
+                    registerBtn.textContent = initialBtnText;
+                 }
+                 stopVideo(); // Stop video after attempt
+            }
+        }
+
+        registerBtn.addEventListener('click', async () => {
+            const modelsReady = await loadModels();
+            if (!modelsReady) return;
+
+            const videoStarted = await startVideo();
+            if (videoStarted) {
+                setStatus("Look directly at the camera. Capturing in 3 seconds...", 'info');
+                // Use setTimeout to schedule capture
+                setTimeout(captureAndRegister, 3000);
+            }
+        });
+
+        // Clean up video on page leave
+        window.addEventListener('beforeunload', stopVideo);
+
+        // --- FIX: Add initial model load trigger ---
+        // Load models as soon as the script runs, not just on button click
+        document.addEventListener('DOMContentLoaded', loadModels);
+
+
+    </script>
+
+</body>
+</html>

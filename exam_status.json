@@ -1,7 +1,7 @@
 {
-    "tcs": "active",
-    "ip": "active",
-    "dwm": "active",
-    "cn": "active",
-    "se": "active"
+    "tcs": "inactive",
+    "ip": "inactive",
+    "dwm": "inactive",
+    "cn": "inactive",
+    "se": "inactive"
 }
